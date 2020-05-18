@@ -23,6 +23,7 @@ locals {
     Gmail_Sms_Label                               = var.gmail_sms_label
     Gmail_Call_Log_Label                          = var.gmail_call_log_label
     Gmail_Personal_Capital_Label                  = var.gmail_personal_capital_label
+    Gmail_Recruiter_Label                         = var.gmail_recruiter_label
     Gmail_LinkedIn_Label                          = var.gmail_linkedin_label
     Gmail_Sms_Email_Address                       = var.gmail_sms_email_address
     Gmail_Recruiter_Email_Address                 = var.gmail_recruiter_email_address

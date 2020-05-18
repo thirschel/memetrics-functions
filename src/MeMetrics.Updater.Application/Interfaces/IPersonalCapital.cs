@@ -8,6 +8,6 @@ namespace MeMetrics.Updater.Application.Interfaces
     {
         Task Authenticate(string username, string password, string pmData);
         Task<AccountsOverview> GetAccounts();
-        Task<UserTransactions> GetUserTransactions(string startDate, string endDate, List<string> userAccountIds);
+        Task<UserTransactions> GetUserTransactions(string startDate, string endDate);
     }
 }

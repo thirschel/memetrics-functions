@@ -10,6 +10,7 @@
             public static string ThreadId = "X-smssync-thread";
             public static string Date = "Date";
             public static string Subject = "Subject";
+            public static string MimeType_Text = "text/plain";
         }
 
         public static class HttpClients

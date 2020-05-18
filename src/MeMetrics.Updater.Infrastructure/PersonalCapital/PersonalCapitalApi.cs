@@ -69,7 +69,7 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
             return JsonConvert.DeserializeObject<AccountsOverview>(result);
         }
 
-        public async Task<UserTransactions> GetUserTransactions(string startDate, string endDate, List<string> userAccountIds)
+        public async Task<UserTransactions> GetUserTransactions(string startDate, string endDate)
         {
             var data = new List<KeyValuePair<string, string>>()
             {

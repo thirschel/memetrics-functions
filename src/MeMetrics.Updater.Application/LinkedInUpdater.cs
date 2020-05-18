@@ -24,8 +24,8 @@ namespace MeMetrics.Updater.Application
         private readonly IOptions<EnvironmentConfiguration> _configuration;
 
         public RecruitmentMessageUpdater(
-            ILogger logger, 
-            IOptions<EnvironmentConfiguration> configuration, 
+            ILogger logger,
+            IOptions<EnvironmentConfiguration> configuration,
             ILinkedInApi linkedInApi,
             IGmailApi gmailApi,
             IMeMetricsApi memetricsApi)
@@ -36,7 +36,6 @@ namespace MeMetrics.Updater.Application
             _gmailApi = gmailApi;
             _memetricsApi = memetricsApi;
         }
-
 
         public async Task GetAndSaveLinkedInMessages()
         {
@@ -85,8 +84,9 @@ namespace MeMetrics.Updater.Application
                 var recruiterId = recruiterIdRegex.Match(recruiter.ObjectUrn).Groups[1].ToString();
                 foreach (var element in events.Elements)
                 {
+                    var subTypes = Enum.GetValues(typeof(LinkedInMessageSubType)).Cast<LinkedInMessageSubType>().Select(x => x.GetDescription());
                     hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(element.CreatedAt) < DateTimeOffset.UtcNow.AddDays(-2);
-                    if (element.Subtype != "INMAIL" && element.Subtype != "INMAIL_REPLY" && element.Subtype != "MEMBER_TO_MEMBER" || hasFoundAllTodaysCalls)
+                    if (!subTypes.Contains(element.Subtype) || hasFoundAllTodaysCalls)
                     {
                         continue;
                     }
@@ -124,33 +124,29 @@ namespace MeMetrics.Updater.Application
         {
             await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
             var labels = await _gmailApi.GetLabels();
-            var smsLabel = labels.Labels.FirstOrDefault(l => l.Name == "Recruiter")?.Id;
+            var recruiterLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Recruiter_Label)?.Id;
 
-            var response = await _gmailApi.GetEmails(smsLabel);
+            var response = await _gmailApi.GetEmails(recruiterLabel);
             var messages = new List<Google.Apis.Gmail.v1.Data.Message>();
             messages.AddRange(response.Messages);
 
             var hasFoundAllTodaysCalls = false;
-            while (!hasFoundAllTodaysCalls && !string.IsNullOrEmpty(response.NextPageToken))
+            while (!hasFoundAllTodaysCalls && messages.Any())
             {
                 for (var i = 0; i < messages.Count; i++)
                 {
-                    if (hasFoundAllTodaysCalls) return;
                     var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-2);
-                    var headers = email.Payload.Headers.GroupBy(x => x.Name)
-                        .ToDictionary(x => x.Key, x => string.Join("", x.Select(y => y.Value)));
+                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-2);
+                    if (hasFoundAllTodaysCalls) return;
+                    var headers = email.Payload.Headers.GroupBy(x => x.Name).ToDictionary(x => x.Key, x => string.Join("", x.Select(y => y.Value)));
                     var from = headers[Constants.EmailHeader.From];
                     var to = headers[Constants.EmailHeader.To];
                     var subject = headers[Constants.EmailHeader.Subject];
-                    var date = headers[Constants.EmailHeader.Date];
-                    var body = GetBody(email);
+                    var body = EmailHelper.GetBody(email);
                     var regex = new Regex(@"(.*) <(.*)>", RegexOptions.IgnoreCase);
                     var withHeader = !from.Contains(_configuration.Value.Gmail_Recruiter_Email_Address) ? from : to;
                     withHeader = Regex.Replace(withHeader, "[\",]", "");
-                    date =  Regex.Replace(date, @"\(\w{3}\)", "");
                     var match = regex.Match(withHeader);
-                    var occurredDate = DateTimeOffset.Parse(date);
                     var message = new RecruitmentMessage()
                     {
                         RecruiterId = match.Groups[2].Value,
@@ -160,52 +156,24 @@ namespace MeMetrics.Updater.Application
                         MessageSource = RecruitmentMessageSource.DirectEmail,
                         Subject = subject,
                         Body = body,
-                        OccurredDate = occurredDate,
+                        OccurredDate = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value),
                         IsIncoming = to.Contains(_configuration.Value.Gmail_Recruiter_Email_Address),
                     };
                     await _memetricsApi.SaveRecruitmentMessage(message);
                     transactionCount++;
-      
+
                 }
 
-                response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
                 messages.Clear();
-                messages.AddRange(response.Messages);
+
+                if (!string.IsNullOrEmpty(response.NextPageToken))
+                {
+                    response = await _gmailApi.GetEmails(recruiterLabel, response.NextPageToken);
+                    messages.AddRange(response.Messages);
+                }
             }
 
             _logger.Information($"{transactionCount} messages successfully saved");
-        }
-
-        internal string GetBody(Google.Apis.Gmail.v1.Data.Message email)
-        {
-            var body = string.Empty;
-            if (email.Payload.Parts != null)
-            {
-                body = GetBodyFromMessagePart(email.Payload.Parts.ToList());
-            }
-            else
-            {
-                body =  email.Payload.Body.Data ?? string.Empty;
-            }
-
-            return string.IsNullOrEmpty(body) ? string.Empty : Utility.Decode(body);
-        }
-
-        internal string GetBodyFromMessagePart(List<Google.Apis.Gmail.v1.Data.MessagePart> parts)
-        {
-            for (var i = 0; i < parts.Count; i++)
-            {
-                if (parts[i].MimeType.Contains("text/plain"))
-                {
-                    return parts[i].Body.Data;
-                }
-                if (parts[i].Parts != null)
-                {
-                    return GetBodyFromMessagePart(parts[i].Parts.ToList());
-                }
-            }
-
-            return string.Empty;
         }
     }
 }

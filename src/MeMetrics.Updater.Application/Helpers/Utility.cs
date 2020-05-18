@@ -1,4 +1,7 @@
 ﻿using System;
+using System.ComponentModel;
+using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace MeMetrics.Updater.Application.Helpers
@@ -14,11 +17,6 @@ namespace MeMetrics.Updater.Application.Helpers
 
             var bytes = Base64Url.Decode(base64EncodedData);
             return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
-        }
-
-        public static bool IsDateToday(DateTime input)
-        {
-            return input.ToString("YYYY-MM-DD") == DateTime.Now.ToString("YYYY-MM-DD");
         }
 
         public static string FormatStringToPhoneNumber(string str)
@@ -70,6 +68,21 @@ namespace MeMetrics.Updater.Application.Helpers
         public static string AddPadding(int number)
         {
             return number.ToString().Length == 1 ? $"0{number}" : number.ToString();
+        }
+
+        public static string GetDescription(this Enum GenericEnum)
+        {
+            Type genericEnumType = GenericEnum.GetType();
+            MemberInfo[] memberInfo = genericEnumType.GetMember(GenericEnum.ToString());
+            if ((memberInfo != null && memberInfo.Length > 0))
+            {
+                var _Attribs = memberInfo[0].GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false);
+                if ((_Attribs != null && _Attribs.Count() > 0))
+                {
+                    return ((System.ComponentModel.DescriptionAttribute)_Attribs.ElementAt(0)).Description;
+                }
+            }
+            return GenericEnum.ToString();
         }
     }
 }

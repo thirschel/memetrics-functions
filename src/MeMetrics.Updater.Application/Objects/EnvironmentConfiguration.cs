@@ -9,6 +9,7 @@
         public string Uber_Cookie { get; set; }
         public string Uber_User_Id { get; set; }
         public string Gmail_Sms_Label { get; set; }
+        public string Gmail_Recruiter_Label { get; set; }
         public string Gmail_Sms_Email_Address { get; set; }
         public string Gmail_Recruiter_Email_Address { get; set; }
         public string Gmail_Call_Log_Label { get; set; }

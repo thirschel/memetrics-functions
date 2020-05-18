@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Helpers;
@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using Serilog;
 using Message = MeMetrics.Updater.Application.Objects.MeMetrics.Message;
 
+[assembly: InternalsVisibleTo("MeMetrics.Updater.Application.Tests")]
 namespace MeMetrics.Updater.Application
 {
     public class MessageUpdater : IMessageUpdater
@@ -47,13 +48,16 @@ namespace MeMetrics.Updater.Application
 
             var hasFoundAllTodaysCalls = false;
 
-            while (!hasFoundAllTodaysCalls && !string.IsNullOrEmpty(response.NextPageToken))
+            while (!hasFoundAllTodaysCalls && messages.Any())
             {
                 for (var i = 0; i < messages.Count; i++)
                 {
-                    if (hasFoundAllTodaysCalls) return;
                     var email = await _gmailApi.GetEmail(messages[i].Id);
                     hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-2);
+                    if (hasFoundAllTodaysCalls)
+                    {
+                        return;
+                    }
 
                     var headers = email.Payload.Headers.ToDictionary(x => x.Name, y => y.Value);
                     var from = headers[Constants.EmailHeader.From];
@@ -67,7 +71,7 @@ namespace MeMetrics.Updater.Application
                     var attachments = isMedia ? new List<Attachment>() : await GetAttachments(messages[i].Id, email);
                     var nameRegex = new Regex(@"(.*) <.*>", RegexOptions.IgnoreCase);
                     var name = nameRegex.Match(withHeader).Groups[1].Value.Trim();
-                    var body = GetBody(email);
+                    var body = EmailHelper.GetBody(email);
 
                     var message = new Message
                     {
@@ -86,30 +90,19 @@ namespace MeMetrics.Updater.Application
                     transactionCount++;
                 }
 
-                response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
                 messages.Clear();
-                messages.AddRange(response.Messages);
+
+                if (!string.IsNullOrEmpty(response.NextPageToken))
+                {
+                    response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
+                    messages.AddRange(response.Messages);
+                }
             }
 
             _logger.Information($"{transactionCount} messages successfully saved");
         }
 
-        private string GetBody(Google.Apis.Gmail.v1.Data.Message email)
-        {
-            var body = string.Empty;
-            if (email.Payload.Parts != null)
-            {
-                var textPart = email.Payload.Parts.FirstOrDefault(p => p.MimeType.Contains("text/plain"));
-                body = textPart != null ? textPart.Body.Data : body;
-            }
-            else
-            {
-                body = email.Payload.Body.Data ?? string.Empty;
-            }
-            return body == string.Empty ? string.Empty : Utility.Decode(body);
-        }
-
-        private async Task<List<Attachment>> GetAttachments(string messageId, Google.Apis.Gmail.v1.Data.Message email)
+        internal async Task<List<Attachment>> GetAttachments(string messageId, Google.Apis.Gmail.v1.Data.Message email)
         {
             var attachments = new List<Attachment>();
             for (var j = 0; j < email.Payload.Parts?.Count; j++)

@@ -43,6 +43,7 @@ variable "gmail_main_refresh_token" {}
 variable "gmail_sms_label" {}
 variable "gmail_call_log_label" {}
 variable "gmail_personal_capital_label" {}
+variable "gmail_recruiter_label" {}
 variable "gmail_linkedin_label" {}
 variable "gmail_sms_email_address" {}
 variable "gmail_recruiter_email_address" {}

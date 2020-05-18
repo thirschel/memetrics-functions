@@ -80,8 +80,7 @@ namespace MeMetrics.Updater.Application
 
             if (!processedAllTodaysMessages)
             {
-                var newLastMessage =
-                    messageResponse.Response.Messages[messageResponse.Response.Messages.Length - 1];
+                var newLastMessage = messageResponse.Response.Messages[messageResponse.Response.Messages.Length - 1];
                 return await GetAndSaveMessages(groupId, groupName, transactionCount, newLastMessage.Id);
             }
             return transactionCount;

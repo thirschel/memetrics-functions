@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Net.Http;
-using MeMetrics.Updater;
 using MeMetrics.Updater.Application;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
+using MeMetrics.Updater.Functions;
 using MeMetrics.Updater.Infrastructure.Gmail;
 using MeMetrics.Updater.Infrastructure.GroupMe;
 using MeMetrics.Updater.Infrastructure.LinkedIn;
@@ -11,14 +11,14 @@ using MeMetrics.Updater.Infrastructure.MeMetrics;
 using MeMetrics.Updater.Infrastructure.PersonalCapital;
 using MeMetrics.Updater.Infrastructure.Uber;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Azure.WebJobs.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Serilog;
 
 [assembly: WebJobsStartup(typeof(Startup))]
-namespace MeMetrics.Updater
+namespace MeMetrics.Updater.Functions
 {
     public class Startup : FunctionsStartup
     {
