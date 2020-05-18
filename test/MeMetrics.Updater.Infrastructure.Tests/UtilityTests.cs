@@ -1,7 +1,6 @@
-using System.IO;
 using Xunit;
 
-namespace MeMetrics.Updater.Application.Tests
+namespace MeMetrics.Updater.Infrastructure.Tests
 {
     public class UtilityTests
     {

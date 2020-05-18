@@ -8,7 +8,6 @@ using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using Serilog;
 using Message = Google.Apis.Gmail.v1.Data.Message;
 
@@ -23,9 +22,9 @@ namespace MeMetrics.Updater.Application
 
         public CallUpdater(
             ILogger logger, 
-            IOptions<EnvironmentConfiguration> configuration, 
             IGmailApi gmailApi,
-            IMeMetricsApi memetricsApi)
+            IMeMetricsApi memetricsApi,
+            IOptions<EnvironmentConfiguration> configuration)
         {
             _logger = logger;
             _configuration = configuration;
@@ -47,7 +46,7 @@ namespace MeMetrics.Updater.Application
             var hasFoundAllTodaysCalls = false;
             var snippetRegex = new Regex(@"(\d+)s \(\d+:\d+:\d+\) (\d+) \((incoming|outgoing) call\)",RegexOptions.IgnoreCase);
 
-            while (!hasFoundAllTodaysCalls && !string.IsNullOrEmpty(response.NextPageToken))
+            while (!hasFoundAllTodaysCalls && messages.Any())
             {
                 for (var i = 0; i < messages.Count; i++)
                 {
@@ -58,7 +57,7 @@ namespace MeMetrics.Updater.Application
                     var emailMatch = snippetRegex.Match(email.Snippet);
 
                     // Cases that don't match are missed or rejected calls or emails that are not formatted correctly
-                    if (!emailMatch.Success)
+                    if (!emailMatch.Success || hasFoundAllTodaysCalls)
                     {
                         continue;
                     }
@@ -79,10 +78,13 @@ namespace MeMetrics.Updater.Application
                     await _memetricsApi.SaveCall(call);
                     transactionCount++;
                 }
-
-                response = await _gmailApi.GetEmails(callLabelId, response.NextPageToken);
                 messages.Clear();
-                messages.AddRange(response.Messages);
+
+                if (!string.IsNullOrEmpty(response.NextPageToken))
+                {
+                    response = await _gmailApi.GetEmails(callLabelId, response.NextPageToken);
+                    messages.AddRange(response.Messages);
+                }
             }
 
             _logger.Information($"{transactionCount} calls successfully saved");

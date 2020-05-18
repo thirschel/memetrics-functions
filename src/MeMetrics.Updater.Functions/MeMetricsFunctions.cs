@@ -1,14 +1,10 @@
 using System;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Interfaces;
-using MeMetrics.Updater.Application.Objects;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
-namespace MeMetrics.Updater
+namespace MeMetrics.Updater.Functions
 {
     public class MeMetricsFunctions
     {
@@ -21,7 +17,6 @@ namespace MeMetrics.Updater
         private readonly ICacheUpdater _cacheUpdater;
 
         public MeMetricsFunctions(
-            IOptions<EnvironmentConfiguration> configuration,
             IMessageUpdater messageUpdater,
             ICallUpdater callUpdater,
             IChatMessageUpdater chatMessageUpdater,

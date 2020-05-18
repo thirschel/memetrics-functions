@@ -190,6 +190,7 @@ stages:
                 TF_VAR_gmail_call_log_label: 'Call log'
                 TF_VAR_gmail_personal_capital_label: 'Label_3086533790431725377'
                 TF_VAR_gmail_linkedin_label: 'Linkedin Security'
+                TF_VAR_gmail_recruiter_label: 'Recruiter'
                 TF_VAR_gmail_sms_email_address: $(GmailSmsEmailAddress)
                 TF_VAR_gmail_recruiter_email_address: $(GmailRecruiterEmailAddress)
                 TF_VAR_lyft_refresh_token: $(LyftRefreshToken)
