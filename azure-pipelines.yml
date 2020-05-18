@@ -1,0 +1,222 @@
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/yaml-schema?view=vsts&tabs=schema
+trigger:
+  branches:
+    include:
+    - refs/pull/*
+    - develop
+    - release
+
+stages:
+- stage: Build
+  pool:
+    vmImage: 'ubuntu-16.04'
+
+  variables:
+    - group: Infrastructure
+    - name: build_configuration
+      value: 'Release'
+    - name: api_image_name
+      value: 'memetrics-updater-function'
+    - name: project_name
+      value: 'MeMetrics.Updater'
+  jobs:
+  - job: Build
+    steps:
+    - bash: |
+        echo 'Docker api image name - $(api_image_name)'
+        echo 'Build number - $(Build.BuildNumber)'
+        echo 'Source branch - $(Build.SourceBranch)'
+      displayName: echo build number
+
+    - task: UseDotNet@2
+      displayName: 'dotnet install'
+      inputs:
+        packageType: 'sdk'
+        version: 3.1.201
+
+    # DotNetCoreCLI@2 makes it easy to specify a VSTS feed and handles the authentication.
+    - task: DotNetCoreCLI@2
+      displayName: 'dotnet restore'
+      inputs:
+        command: restore
+        version: 3.1.201
+
+    - task: DotNetCoreCLI@2
+      displayName: dotnet build
+      inputs:
+        projects: 'src/$(project_name).Functions/*.csproj'
+        arguments: '--configuration $(build_configuration)'
+        version: 3.1.201
+
+    # Test
+    # Removing coverage percentages until Azure DevOps supports differential coverage checks on pull requests for Cobertura
+    # https://docs.microsoft.com/en-us/azure/devops/pipelines/test/codecoverage-for-pullrequests?view=azure-devops
+    - bash: |
+        dotnet test test/$(project_name).Functions.Tests --configuration $(build_configuration) --logger trx -p:CollectCoverage=true -p:CoverletOutputFormat=cobertura -p:Include="[$(project_name).Api]*"
+        dotnet test test/$(project_name).Application.Tests --configuration $(build_configuration) --logger trx -p:CollectCoverage=true -p:CoverletOutputFormat=cobertura -p:Include="[$(project_name).Application]*"
+        dotnet test test/$(project_name).Infrastructure.Tests --configuration $(build_configuration) --logger trx -p:CollectCoverage=true -p:CoverletOutputFormat=cobertura -p:Exclude="[$(project_name).Infrastructure]*Client" -p:Include="[$(project_name).Infrastructure]*"
+      failOnStderr: true
+      displayName: dotnet test
+
+    # Publish Test Results
+    - task: PublishTestResults@2
+      displayName: publish test results
+      inputs:
+        testRunner: VSTest
+        testResultsFiles: '**/*.trx'
+
+    # Build Docker image
+    - bash: |
+        docker build . -t $(DockerRegistryServerName)/$(api_image_name):$(Build.BuildNumber)
+      displayName: build docker image
+
+    # Login to Docker
+    - bash: docker login -u $(DockerRegistryUsername) -p $pswd $(DockerRegistryServerName)
+      displayName: docker login
+      env:
+        pswd: $(DockerRegistryPassword)
+
+    # Push Docker image
+    - bash: |
+        docker push $(DockerRegistryServerName)/$(api_image_name):$(Build.BuildNumber)
+      displayName: push docker image
+      condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.SourceBranch'], 'refs/heads/release')), ne(variables['Build.Reason'], 'PullRequest'))
+
+    # Validate and create Terraform artifact
+    - bash: cp -r . $(Build.ArtifactStagingDirectory)/infrastructure
+      workingDirectory: infrastructure
+      displayName: infrastructure copy
+
+    - task: PublishBuildArtifacts@1
+      displayName: publish artifacts
+      inputs:
+        PathtoPublish: '$(build.artifactstagingdirectory)'
+- stage: Deploy
+  pool:
+    vmImage: 'ubuntu-16.04'
+  variables:
+    - group: Infrastructure
+    - name: environment
+      value: 'dev'
+    - name: api_image_name
+      value: $(DockerRegistryServerName)/memetrics-updater-function:$(Build.BuildNumber)
+    - name: terraform_version
+      value: 0.12.24
+    - name: log_level
+      value: 'info'
+    - name: service_plan_name
+      value: memetrics-$(environment)-plan
+    - name: resource_group_name
+      value: memetrics-$(environment)
+    - name: terraform_backend_filename
+      value: $(environment)-function-tf-state-file
+    - name: key_vault_name
+      value: mm$(environment)-keyvault
+    - name: allowed_origin
+      value: 'https://www.memetrics.net'
+  jobs:
+    - deployment: deploy
+      displayName: Deploy
+      pool:
+        vmImage: 'Ubuntu-16.04'
+      # creates an environment if it doesn't exist
+      environment: $(environment)
+      strategy:
+        # default deployment strategy, more coming...
+        runOnce:
+          deploy:
+            steps:
+            - bash: |
+                echo 'Environment - $(env)'
+                echo 'Api image name - $(api_image_name)'
+                echo 'Terraform Version - $(terraform_version)'
+                echo 'Log Level - $(log_level)'
+                echo 'Service plan name - $(service_plan_name)'
+                echo 'Resource group name - $(resource_group_name)'
+                echo 'Terraform backend filename - $(terraform_backend_filename)'
+                echo 'Key vault name - $(key-vault-name)'
+              displayName: echo build number
+
+            - task: charleszipp.azure-pipelines-tasks-terraform.azure-pipelines-tasks-terraform-installer.TerraformInstaller@0
+              displayName: 'use terraform $(terraform_version)'
+              inputs:
+                terraformVersion: $(terraform_version)
+
+            - task: AzureKeyVault@1
+              displayName: 'download keyvault secrets'
+              inputs:
+                azureSubscription: 'Visual Studio Enterprise'
+                keyVaultName: '$(key_vault_name)'
+
+            - bash: 'terraform init -backend-config="storage_account_name=$(TerraformStorageAccountName)" -backend-config="container_name=$(TerraformContainerName)" -backend-config="access_key=$(TerraformStorageAccountKey)" -backend-config="key=$(terraform_backend_filename)"'
+              displayName: 'terraform init'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/../drop/infrastructure'
+              env:
+                ARM_CLIENT_ID: $(DevopsClientId)
+                ARM_TENANT_ID: $(DevopsTenantId)
+                ARM_CLIENT_SECRET: $(DevopsClientSecret)
+                ARM_SUBSCRIPTION_ID: $(DevopsSubscriptionId)
+
+            - bash: 'terraform workspace select $(environment) || terraform workspace new $(environment)'
+              displayName: 'terraform workspace select $(environment)'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/../drop'
+              env:
+                TF_IN_AUTOMATION: 1
+
+            - bash: 'terraform plan -input=false -out=$(Build.BuildNumber).tfplan'
+              displayName: 'terraform plan'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/../drop/infrastructure'
+              env:
+                ARM_CLIENT_ID: $(DevopsClientId)
+                ARM_TENANT_ID: $(DevopsTenantId)
+                ARM_CLIENT_SECRET: $(DevopsClientSecret)
+                ARM_SUBSCRIPTION_ID: $(DevopsSubscriptionId)
+                TF_VAR_app_insights_instrumentation_key: $(AppInsightsInstrumentationKey)
+                TF_VAR_infrastructure_app_service_plan_name: $(service_plan_name)
+                TF_VAR_infrastructure_resource_group_name: $(resource_group_name)
+                TF_VAR_infrastructure_resource_group_location: 'East US'
+                TF_VAR_docker_custom_image_name: $(api_image_name)
+                TF_VAR_docker_registry_server_url: $(DockerRegistryServerName)
+                TF_VAR_docker_registry_server_username: $(DockerRegistryUsername)
+                TF_VAR_docker_registry_server_password: $(DockerRegistryPassword)
+                TF_VAR_aspnetcore_environment: 'Development'
+                TF_VAR_memetrics_base_url: 'https://memetrics-dev-api.azurewebsites.net'
+                TF_VAR_memetrics_api_key: $(PrimaryApiKey)
+                TF_VAR_gmail_client_id: $(GmailClientId)
+                TF_VAR_gmail_client_secret: $(GmailClientSecret)
+                TF_VAR_gmail_history_refresh_token: $(GmailHistoryRefreshToken)
+                TF_VAR_gmail_main_refresh_token: $(GmailMainRefreshToken)
+                TF_VAR_gmail_sms_label: 'SMS'
+                TF_VAR_gmail_call_log_label: 'Call log'
+                TF_VAR_gmail_personal_capital_label: 'Label_3086533790431725377'
+                TF_VAR_gmail_linkedin_label: 'Linkedin Security'
+                TF_VAR_gmail_sms_email_address: $(GmailSmsEmailAddress)
+                TF_VAR_gmail_recruiter_email_address: $(GmailRecruiterEmailAddress)
+                TF_VAR_lyft_refresh_token: $(LyftRefreshToken)
+                TF_VAR_lyft_basic_auth: $(LyftBasicAuth)
+                TF_VAR_lyft_cookie: $(LyftCookie)
+                TF_VAR_uber_client_id: $(UberClientId)
+                TF_VAR_uber_client_secret: $(UberClientSecret)
+                TF_VAR_uber_refresh_token: $(UberRefreshToken)
+                TF_VAR_uber_cookie: $(UberCookie)
+                TF_VAR_uber_user_id: $(UberUserId)
+                TF_VAR_groupme_access_token:  $(GroupMeAccessToken)
+                TF_VAR_linkedin_username: $(LinkedInUsername)
+                TF_VAR_linkedin_password: $(LinkedInPassword)
+                TF_VAR_personal_capital_username: $(PersonalCapitalUsername)
+                TF_VAR_personal_capital_password: $(PersonalCapitalPassword)
+                TF_VAR_personal_capital_pmdata: $(PersonalCapitalPMData)
+                TF_VAR_env: $(environment)
+                TF_VAR_log_level: $(log_level)
+                TF_WORKSPACE: $(environment)
+                
+            - bash: 'terraform apply -input=false $(Build.BuildNumber).tfplan'
+              displayName: 'terraform apply'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/../drop/infrastructure'
+              env:
+                ARM_CLIENT_ID: $(DevopsClientId)
+                ARM_TENANT_ID: $(DevopsTenantId)
+                ARM_CLIENT_SECRET: $(DevopsClientSecret)
+                ARM_SUBSCRIPTION_ID: $(DevopsSubscriptionId)
+                TF_WORKSPACE: $(environment)
+

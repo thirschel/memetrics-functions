@@ -1,0 +1,9 @@
+{
+  "version": "2.0",
+  "applicationInsights": {
+    "samplingExcludedTypes": "Request",
+    "samplingSettings": {
+      "isEnabled": true
+    }
+  }
+}
