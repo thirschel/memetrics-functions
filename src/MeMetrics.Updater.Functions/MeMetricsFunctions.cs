@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Interfaces;
 using Microsoft.Azure.WebJobs;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MeMetrics.Updater.Functions
 {
+    [ExcludeFromCodeCoverage]
     public class MeMetricsFunctions
     {
         private readonly IMessageUpdater _messageUpdater;

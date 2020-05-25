@@ -18,6 +18,7 @@
         public string GroupMe_Access_Token { get; set; }
         public string LinkedIn_Username { get; set; }
         public string LinkedIn_Password { get; set; }
+        public string LinkedIn_ObjectUrn { get; set; }
         public string Gmail_Main_Refresh_Token { get; set; }
         public string Personal_Capital_Username { get; set; }
         public string Personal_Capital_Password { get; set; }

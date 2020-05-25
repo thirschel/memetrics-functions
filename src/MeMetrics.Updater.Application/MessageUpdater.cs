@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AutoMapper;
 using MeMetrics.Updater.Application.Helpers;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
@@ -21,17 +22,20 @@ namespace MeMetrics.Updater.Application
         private readonly IGmailApi _gmailApi;
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IOptions<EnvironmentConfiguration> _configuration;
+        private readonly IMapper _mapper;
 
         public MessageUpdater(
             ILogger logger, 
             IOptions<EnvironmentConfiguration> configuration, 
             IGmailApi gmailApi,
-            IMeMetricsApi memetricsApi)
+            IMeMetricsApi memetricsApi,
+            IMapper mapper)
         {
             _logger = logger;
             _configuration = configuration;
             _gmailApi = gmailApi;
             _memetricsApi = memetricsApi;
+            _mapper = mapper;
         }
 
         public async Task GetAndSaveMessages()
@@ -59,33 +63,9 @@ namespace MeMetrics.Updater.Application
                         return;
                     }
 
-                    var headers = email.Payload.Headers.ToDictionary(x => x.Name, y => y.Value);
-                    var from = headers[Constants.EmailHeader.From];
-                    var to = headers[Constants.EmailHeader.To];
-                    var threadId = headers[Constants.EmailHeader.ThreadId];
-                    var occurredDate = DateTimeOffset.Parse(headers[Constants.EmailHeader.Date]);
-                    var isIncoming = from.ToLower() != _configuration.Value.Gmail_Sms_Email_Address;
-                    var withHeader = isIncoming ? from : to;
-                    var phoneNumber = Utility.FormatStringToPhoneNumber(headers[Constants.EmailHeader.PhoneNumber]);
-                    var isMedia = email.Payload.Parts != null && email.Payload.Parts.Any(p => p.Body?.AttachmentId != null);
-                    var attachments = isMedia ? new List<Attachment>() : await GetAttachments(messages[i].Id, email);
-                    var nameRegex = new Regex(@"(.*) <.*>", RegexOptions.IgnoreCase);
-                    var name = nameRegex.Match(withHeader).Groups[1].Value.Trim();
-                    var body = EmailHelper.GetBody(email);
-
-                    var message = new Message
-                    {
-                        MessageId = messages[i].Id,
-                        OccurredDate = occurredDate,
-                        PhoneNumber = phoneNumber,
-                        Name = name,
-                        IsIncoming = isIncoming,
-                        Text = body,
-                        IsMedia = isMedia,
-                        TextLength = body.Length,
-                        ThreadId = int.Parse(threadId),
-                        Attachments = attachments
-                    };
+                    var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
+                    message.Attachments = await GetAttachments(messages[i].Id, email);
+           
                     await _memetricsApi.SaveMessage(message);
                     transactionCount++;
                 }

@@ -5,8 +5,7 @@ namespace MeMetrics.Updater.Application.Interfaces
 {
     public interface ILyftApi
     {
-        Task<RideHistoryResponse> GetRides(string startTime, string endTime);
-
-        Task<PassengerRidesResponse> GetPassengerRides();
+        Task Authenticate(string cookie);
+        Task<PassengerTrips> GetTrips(int skip = 0);
     }
 }

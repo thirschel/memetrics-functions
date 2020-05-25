@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Interfaces;
@@ -10,6 +11,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Serilog;
 
+[assembly: InternalsVisibleTo("MeMetrics.Updater.Infrastructure.Tests")]
 namespace MeMetrics.Updater.Infrastructure.PersonalCapital
 {
     public class PersonalCapitalApi : IPersonalCapitalApi
@@ -24,8 +26,8 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
          * to login with just a username and password.
          */
         private readonly string _baseUrl = "https://home.personalcapital.com";
-        private string _csrf;
-        private string _cookie;
+        internal string _csrf;
+        internal string _cookie;
         private readonly HttpClient _client;
         private readonly ILogger _logger;
         public PersonalCapitalApi(
@@ -41,12 +43,6 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
             await GetInitialCsrf();
             var cookieHeader = await IdentifyUserAndGetUserCsrf(username, pmData);
             _cookie = $"PMData={pmData};{cookieHeader}";
-            await AuthenticatePassword(password);
-        }
-
-        public async Task AuthenticateChallenge(string code, string password)
-        {
-            await AuthenticateEmail(code);
             await AuthenticatePassword(password);
         }
 
@@ -90,15 +86,16 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
             return JsonConvert.DeserializeObject<UserTransactions>(result);
         }
 
-        private async Task GetInitialCsrf()
+        internal async Task GetInitialCsrf()
         {
-            var response = await _client.GetAsync(_baseUrl);
+            var request = new HttpRequestMessage(HttpMethod.Get, _baseUrl);
+            var response = await _client.SendAsync(request);
             var result = await response.Content.ReadAsStringAsync();
             var regex = new Regex("globals.csrf='([a-f0-9-]+)'");
             _csrf = regex.Match(result).Groups[1].ToString();
         }
 
-        private async Task<string> IdentifyUserAndGetUserCsrf(string username, string pmData)
+        internal async Task<string> IdentifyUserAndGetUserCsrf(string username, string pmData)
         {
             var identifyusercsrf = new List<KeyValuePair<string, string>>()
             {
@@ -127,53 +124,7 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
 
         }
 
-        private async Task GenerateChallengeEmail()
-        {
-            var data = new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("challengeReason", "DEVICE_AUTH"),
-                new KeyValuePair<string, string>("challengeMethod", "OP"),
-                new KeyValuePair<string, string>("challengeType", "EMAIL"),
-                new KeyValuePair<string, string>("apiClient", "WEB"),
-                new KeyValuePair<string, string>("bindDevice", "false"),
-                new KeyValuePair<string, string>("csrf",  _csrf),
-            };
-            var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl + "/api/credential/challengeEmail")
-            {
-                Content = new FormUrlEncodedContent(data)
-            };
-
-            var response = await _client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-
-            }
-        }
-
-        private async Task AuthenticateEmail(string code)
-        {
-            var data = new List<KeyValuePair<string, string>>()
-            {
-                new KeyValuePair<string, string>("challengeReason", "DEVICE_AUTH"),
-                new KeyValuePair<string, string>("challengeMethod", "OP"),
-                new KeyValuePair<string, string>("apiClient", "WEB"),
-                new KeyValuePair<string, string>("bindDevice", "false"),
-                new KeyValuePair<string, string>("code",  code),
-                new KeyValuePair<string, string>("csrf",  _csrf),
-            };
-            var request = new HttpRequestMessage(HttpMethod.Post, _baseUrl + "/api/credential/authenticateEmailByCode")
-            {
-                Content = new FormUrlEncodedContent(data)
-            };
-
-            var response = await _client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-
-            }
-        }
-
-        private async Task AuthenticatePassword(string password)
+        internal async Task AuthenticatePassword(string password)
         {
             var data = new List<KeyValuePair<string, string>>()
             {
@@ -193,11 +144,7 @@ namespace MeMetrics.Updater.Infrastructure.PersonalCapital
             };
             request.Headers.Add("Cookie", _cookie);
 
-            var response = await _client.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-
-            }
+            await _client.SendAsync(request);
         }
     }
 }

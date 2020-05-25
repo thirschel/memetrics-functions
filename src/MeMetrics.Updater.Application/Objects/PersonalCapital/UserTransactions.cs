@@ -162,7 +162,7 @@ namespace MeMetrics.Updater.Application.Objects.PersonalCapital
         public bool HasViewed { get; set; }
 
         [JsonProperty("categoryId")]
-        public long CategoryId { get; set; }
+        public int CategoryId { get; set; }
 
         [JsonProperty("status")]
         public string Status { get; set; }

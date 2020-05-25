@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AutoMapper;
 using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.GroupMe;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
+using MeMetrics.Updater.Application.Profiles;
 using Microsoft.Extensions.Options;
 using Moq;
 using Newtonsoft.Json;
@@ -17,6 +19,13 @@ namespace MeMetrics.Updater.Application.Tests
 {
     public class ChatMessageUpdaterTests
     {
+        public readonly IMapper _mapper;
+        public ChatMessageUpdaterTests()
+        {
+            var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<ChatMessageProfile>(); });
+            _mapper = new Mapper(configuration);
+        }
+
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldSaveChatMessagesCorrectly()
         {
@@ -36,7 +45,7 @@ namespace MeMetrics.Updater.Application.Tests
             {
                 Groups = new Group[]
                 {
-                    new Group(){ GroupId = groupId, Name = groupName}
+                    new Group(){ Id = groupId, Name = groupName}
                 }
             });
 
@@ -78,7 +87,6 @@ namespace MeMetrics.Updater.Application.Tests
                 SenderId = senderId,
                 SenderName = name,
                 Text = text,
-                TextLength = text.Length
             };
 
             Func<ChatMessage, bool> validate = chatMessage => {
@@ -86,7 +94,7 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object );
+            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
             groupMeApiMock.Verify(x => x.Authenticate(config.Value.GroupMe_Access_Token), Times.Once);
@@ -112,7 +120,7 @@ namespace MeMetrics.Updater.Application.Tests
             {
                 Groups = new Group[]
                 {
-                    new Group(){ GroupId = groupId, Name = groupName}
+                    new Group(){ Id = groupId, Name = groupName}
                 }
             });
 
@@ -126,7 +134,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object);
+            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
             memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
@@ -169,7 +177,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object);
+            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
             memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
@@ -196,7 +204,7 @@ namespace MeMetrics.Updater.Application.Tests
             {
                 Groups = new Group[]
                 {
-                    new Group(){ GroupId = groupId, Name = groupName}
+                    new Group(){ Id = groupId, Name = groupName}
                 }
             });
 
@@ -216,7 +224,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object);
+            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
             memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
@@ -241,7 +249,7 @@ namespace MeMetrics.Updater.Application.Tests
             {
                 Groups = new Group[]
                 {
-                    new Group(){ GroupId = groupId, Name = groupName}
+                    new Group(){ Id = groupId, Name = groupName}
                 }
             });
 
@@ -287,7 +295,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object);
+            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
             memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Exactly(2));

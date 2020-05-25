@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -12,6 +13,7 @@ using Newtonsoft.Json;
 using Serilog;
 using Uber.API.Objects;
 
+[assembly: InternalsVisibleTo("MeMetrics.Updater.Infrastructure.Tests")]
 namespace MeMetrics.Updater.Infrastructure.Uber
 {
     public class UberRidersApi : IUberRidersApi
@@ -26,9 +28,9 @@ namespace MeMetrics.Updater.Infrastructure.Uber
          * for retrival of data as though the user were logged in through the normal authentication flow.
          */
         private readonly string baseUrl = "https://riders.uber.com";
-        private string _cookie;
-        private string _userId;
-        private string _csrf;
+        internal string _cookie;
+        internal string _userId;
+        internal string _csrf;
         private readonly HttpClient _client;
         private readonly ILogger _logger;
 
@@ -61,52 +63,21 @@ namespace MeMetrics.Updater.Infrastructure.Uber
             }
             var result = await response.Content.ReadAsStringAsync();
             var regex = new Regex("CSRF_TOKEN__\" type=\"application/json\">\\\\u0022(\\d+-(\\w|\\d|-)+)");
+
             _csrf = regex.Match(result).Groups[1].ToString();
             _cookie = string.Join(";", splitCookie);
 
         }
-
-        public async Task SetCsrfToken()
-        {
-            var cookieContainer = new CookieContainer();
-            var client = new HttpClient(new HttpClientHandler() { CookieContainer = cookieContainer })
-            {
-                BaseAddress = new Uri(baseUrl)
-            };
-            var uri = new Uri("https://riders.uber.com/csrf-token");
-            var cookies = _cookie.Split(';');
-            foreach (var cookie in cookies)
-            {
-                var values = cookie.Split(new[] { '=' }, 2);
-                if (values[0] != " _ua")
-                {
-                    cookieContainer.Add(uri, new Cookie(values[0].Trim(), values[1].Trim()));
-                }
-            }
-            client.DefaultRequestHeaders.Add("Accept", "*/*");
-            client.DefaultRequestHeaders.Add("Accept-Encoding", "gzip, deflate, br");
-            client.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9");
-            client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.67 Safari/537.36");
-            var response = await client.PostAsync(uri, null);
-            var jwtCookie = response.Headers.GetValues("Set-Cookie").FirstOrDefault(c => c.Contains("jwt-session"));
-            if (jwtCookie != null)
-            {
-                _cookie += $"; {jwtCookie.Split(';')[0]}";
-            }
-            _csrf = response.Headers.GetValues("X-Csrf-Token").First();
-        }
-
 
         public async Task<TripsResponse> GetTrips(int offset = 0)
         {
             var request = new HttpRequestMessage(HttpMethod.Post, new Uri("https://riders.uber.com/api/getTripsForClient"))
             {
                 Content = new StringContent(
-                    "{\"limit\":10,\"offset\":\""+ offset+"\",\"range\":{\"fromTime\":null,\"toTime\":null}}", Encoding.UTF8,
+                    "{\"limit\":10,\"offset\":\""+ offset +"\"}", Encoding.UTF8,
                     "application/json")
             };
             request.Headers.Add("Cookie", _cookie);
-            request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8");
             request.Headers.Add("x-csrf-token", _csrf);
 
             var response = await _client.SendAsync(request);
@@ -121,7 +92,6 @@ namespace MeMetrics.Updater.Infrastructure.Uber
                 Content = new StringContent("{\"tripUUID\":\"" + tripId + "\",\"uuid\":\"" + _userId + "\"}", Encoding.UTF8, "application/json")
             };
             request.Headers.Add("Cookie", _cookie);
-            request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8");
             request.Headers.Add("x-csrf-token", _csrf);
 
             var response = await _client.SendAsync(request);
