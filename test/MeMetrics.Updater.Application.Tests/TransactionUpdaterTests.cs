@@ -1,8 +1,10 @@
 using System;
 using System.Threading.Tasks;
+using AutoMapper;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.PersonalCapital;
+using MeMetrics.Updater.Application.Profiles;
 using Microsoft.Extensions.Options;
 using Moq;
 using Newtonsoft.Json;
@@ -13,6 +15,15 @@ namespace MeMetrics.Updater.Application.Tests
 {
     public class TransactionUpdaterTests
     {
+
+        public static Mock<ILogger> _loggerMock;
+        public static IMapper _mapper;
+        public TransactionUpdaterTests()
+        {
+            var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<TransactionProfile>(); });
+            _loggerMock = new Mock<ILogger>();
+            _mapper = new Mapper(configuration);
+        }
         [Fact]
         public async Task GetAndSaveTransactions_ShouldSaveTransactionsCorrectly()
         {
@@ -30,6 +41,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new TransactionUpdater(
                 loggerMock.Object, 
                 config, 
+                _mapper,
                 gmailApiMock.Object, 
                 personalCapitalApiMock.Object, 
                 memetricsApiMock.Object);

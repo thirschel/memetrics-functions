@@ -3,10 +3,10 @@ using Newtonsoft.Json;
 
 namespace MeMetrics.Updater.Application.Objects.Lyft
 {
-    public class PassengerRidesResponse
+    public class PassengerTrips
     {
         [JsonProperty("data")]
-        public PassengerRides[] Data { get; set; }
+        public Trip[] Data { get; set; }
 
         [JsonProperty("hasMore")]
         public bool HasMore { get; set; }
@@ -18,7 +18,7 @@ namespace MeMetrics.Updater.Application.Objects.Lyft
         public long Skip { get; set; }
     }
 
-    public class PassengerRides
+    public partial class Trip
     {
         [JsonProperty("distance")]
         public long Distance { get; set; }
@@ -45,16 +45,16 @@ namespace MeMetrics.Updater.Application.Objects.Lyft
         public string RideId { get; set; }
 
         [JsonProperty("rideState")]
-        public RideState RideState { get; set; }
+        public string RideState { get; set; }
 
         [JsonProperty("rideType")]
-        public RideType RideType { get; set; }
+        public Enums.RideType RideType { get; set; }
 
         [JsonProperty("rideTypeLabel")]
         public string RideTypeLabel { get; set; }
 
         [JsonProperty("timeZone")]
-        public TimeZone TimeZone { get; set; }
+        public string TimeZone { get; set; }
 
         [JsonProperty("totalMoney")]
         public TotalMoney TotalMoney { get; set; }
@@ -66,15 +66,6 @@ namespace MeMetrics.Updater.Application.Objects.Lyft
         public long Amount { get; set; }
 
         [JsonProperty("amountCurrency")]
-        public AmountCurrency AmountCurrency { get; set; }
+        public string AmountCurrency { get; set; }
     }
-
-    public enum RideState { Processed };
-
-    public enum RideType { Standard };
-
-    public enum TimeZone { Utc0500, Utc0600 };
-
-    public enum AmountCurrency { Usd };
-
 }

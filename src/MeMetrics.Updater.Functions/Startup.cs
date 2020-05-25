@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
 using MeMetrics.Updater.Application;
 using MeMetrics.Updater.Application.Interfaces;
@@ -20,6 +21,7 @@ using Serilog;
 [assembly: WebJobsStartup(typeof(Startup))]
 namespace MeMetrics.Updater.Functions
 {
+    [ExcludeFromCodeCoverage]
     public class Startup : FunctionsStartup
     {
         public override void Configure(IFunctionsHostBuilder builder)

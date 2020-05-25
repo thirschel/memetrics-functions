@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AutoMapper;
 using MeMetrics.Updater.Application.Helpers;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
@@ -16,20 +17,23 @@ namespace MeMetrics.Updater.Application
     public class CallUpdater : ICallUpdater
     {
         private readonly ILogger _logger;
+        private readonly IOptions<EnvironmentConfiguration> _configuration;
         private readonly IGmailApi _gmailApi;
         private readonly IMeMetricsApi _memetricsApi;
-        private readonly IOptions<EnvironmentConfiguration> _configuration;
+        private readonly IMapper _mapper;
 
         public CallUpdater(
-            ILogger logger, 
+            ILogger logger,
+            IOptions<EnvironmentConfiguration> configuration,
             IGmailApi gmailApi,
             IMeMetricsApi memetricsApi,
-            IOptions<EnvironmentConfiguration> configuration)
+            IMapper mapper)
         {
             _logger = logger;
             _configuration = configuration;
             _gmailApi = gmailApi;
             _memetricsApi = memetricsApi;
+            _mapper = mapper;
         }
 
         public async Task GetAndSaveCalls()
@@ -62,19 +66,8 @@ namespace MeMetrics.Updater.Application
                         continue;
                     }
 
-                    var headers = email.Payload.Headers.ToDictionary(x => x.Name, y => y.Value);
-                    var phoneNumber = Utility.FormatStringToPhoneNumber(emailMatch.Groups[2].Value);
-                    var occurredDate = DateTimeOffset.Parse(headers[Constants.EmailHeader.Date]);
-                    var isIncoming = emailMatch.Groups[3].Value.ToLower() == "incoming";
+                    var call = _mapper.Map<Call>(email);
 
-                    var call = new Call()
-                    {
-                        CallId = messages[i].Id,
-                        OccurredDate = occurredDate,
-                        Duration = int.Parse(emailMatch.Groups[1].Value),
-                        PhoneNumber = phoneNumber,
-                        IsIncoming = isIncoming
-                    };
                     await _memetricsApi.SaveCall(call);
                     transactionCount++;
                 }

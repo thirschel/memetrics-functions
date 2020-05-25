@@ -22,5 +22,12 @@
         {
             public static string ApiKeyHeaderName = "X-Api-Key";
         }
+
+        public static class UberStatuses
+        {
+            public static string Completed = "COMPLETED";
+            public static string Canceled = "CANCELED";
+            public static string UberEats = "UberEATS";
+        }
     }
 }

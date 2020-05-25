@@ -23,9 +23,9 @@ namespace MeMetrics.Updater.Infrastructure.LinkedIn
          */
 
         private readonly string baseUrl = "https://www.linkedin.com";
-        private string _csrf;
-        private List<string> _cookie;
-        private Dictionary<string, string> _challengeData;
+        internal string _csrf;
+        internal List<string> _cookie;
+        internal Dictionary<string, string> _challengeData;
         private readonly HttpClient _client;
         private readonly ILogger _logger;
 

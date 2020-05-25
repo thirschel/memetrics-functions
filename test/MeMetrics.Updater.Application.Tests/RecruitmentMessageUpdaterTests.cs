@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.Enums;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
+using MeMetrics.Updater.Application.Profiles;
 using Microsoft.Extensions.Options;
 using Moq;
 using Newtonsoft.Json;
@@ -18,6 +20,15 @@ namespace MeMetrics.Updater.Application.Tests
 {
     public class RecruitmentMessageUpdaterTests
     {
+        public static Mock<ILogger> _loggerMock;
+        public static IMapper _mapper;
+        public RecruitmentMessageUpdaterTests()
+        {
+            var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<RecruitmentMessageProfile>(); });
+            _loggerMock = new Mock<ILogger>();
+            _mapper = new Mapper(configuration);
+        }
+
         [Fact]
         public async Task GetAndSaveEmailMessages_ShouldSaveCallsSuccessfully()
         {
@@ -50,14 +61,14 @@ namespace MeMetrics.Updater.Application.Tests
                 },
             });
 
-            var internalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-
             gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
-                InternalDate = internalDate,
+                Id = messageId,
+                InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
                 Payload = new MessagePart() { 
                     Headers = new List<MessagePartHeader>()
                     {
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.Date, Value = "Sat, 04 Apr 2020 11:47:41 -0500" },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.From, Value = "Tess Ting <tess@ting.com>" },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.To, Value = config.Value.Gmail_Recruiter_Email_Address },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.Subject, Value = "Hi There" },
@@ -86,7 +97,7 @@ namespace MeMetrics.Updater.Application.Tests
                 MessageSource = RecruitmentMessageSource.DirectEmail,
                 Subject = "Hi There",
                 Body = "Test",
-                OccurredDate = DateTimeOffset.FromUnixTimeMilliseconds(internalDate),
+                OccurredDate = DateTimeOffset.Parse("Sat, 04 Apr 2020 11:47:41 -0500"),
                 IsIncoming = true,
             };
 
@@ -95,7 +106,7 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveEmailMessages();
 
             gmailApiMock.Verify(x => x.Authenticate(config.Value.Gmail_Main_Refresh_Token), Times.Once);
@@ -136,6 +147,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
+                Id = messageId,
                 InternalDate = DateTimeOffset.Now.AddDays(-3).ToUnixTimeMilliseconds(),
                 Payload = new MessagePart()
                 {
@@ -160,7 +172,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveEmailMessages();
 
             memetricsApiMock.Verify(x => x.SaveRecruitmentMessage(It.IsAny<RecruitmentMessage>()), Times.Never);
@@ -213,11 +225,13 @@ namespace MeMetrics.Updater.Application.Tests
 
             gmailApiMock.Setup(x => x.GetEmail(It.IsAny<string>())).ReturnsAsync(new Message()
             {
+                Id = messageId,
                 InternalDate = internalDate,
                 Payload = new MessagePart()
                 {
                     Headers = new List<MessagePartHeader>()
                     {
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.Date, Value = "Sat, 04 Apr 2020 11:47:41 -0500" },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.From, Value = "Tess Ting <tess@ting.com>" },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.To, Value = config.Value.Gmail_Recruiter_Email_Address },
                         new MessagePartHeader(){ Name = Constants.EmailHeader.Subject, Value = "Hi There" },
@@ -237,7 +251,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new RecruitmentMessageUpdater(loggerMock.Object, config, linkedinApiMock.Object, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveEmailMessages();
 
             memetricsApiMock.Verify(x => x.SaveRecruitmentMessage(It.IsAny<RecruitmentMessage>()), Times.Exactly(2));

@@ -2,7 +2,11 @@
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.RegularExpressions;
+using System.Web;
+using MeMetrics.Updater.Application.Objects;
+using MeMetrics.Updater.Application.Objects.LinkedIn;
 
 namespace MeMetrics.Updater.Application.Helpers
 {
@@ -15,7 +19,7 @@ namespace MeMetrics.Updater.Application.Helpers
                 return string.Empty;
             }
 
-            var bytes = Base64Url.Decode(base64EncodedData);
+            var bytes = Convert.FromBase64String(base64EncodedData);
             return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
         }
 
@@ -24,45 +28,6 @@ namespace MeMetrics.Updater.Application.Helpers
             var phoneNumber = Regex.Replace(str, "[()+-]", "");
             phoneNumber = Regex.Replace(phoneNumber, " ", "");
             return phoneNumber.Length == 10 ? $"1{phoneNumber}" : phoneNumber;
-        }
-
-        public static class Base64Url
-        {
-            public static string Encode(byte[] arg)
-            {
-                if (arg == null)
-                {
-                    throw new ArgumentNullException("arg");
-                }
-
-                var s = Convert.ToBase64String(arg);
-                return s
-                    .Replace("=", "")
-                    .Replace("/", "_")
-                    .Replace("+", "-");
-            }
-
-            public static string ToBase64(string arg)
-            {
-                if (arg == null)
-                {
-                    throw new ArgumentNullException("arg");
-                }
-
-                var s = arg
-                    .PadRight(arg.Length + (4 - arg.Length % 4) % 4, '=')
-                    .Replace("_", "/")
-                    .Replace("-", "+");
-
-                return s;
-            }
-
-            public static byte[] Decode(string arg)
-            {
-                var decrypted = ToBase64(arg);
-
-                return Convert.FromBase64String(decrypted);
-            }
         }
 
         public static string AddPadding(int number)
@@ -76,13 +41,30 @@ namespace MeMetrics.Updater.Application.Helpers
             MemberInfo[] memberInfo = genericEnumType.GetMember(GenericEnum.ToString());
             if ((memberInfo != null && memberInfo.Length > 0))
             {
-                var _Attribs = memberInfo[0].GetCustomAttributes(typeof(System.ComponentModel.DescriptionAttribute), false);
+                var _Attribs = memberInfo[0].GetCustomAttributes(typeof(DescriptionAttribute), false);
                 if ((_Attribs != null && _Attribs.Count() > 0))
                 {
-                    return ((System.ComponentModel.DescriptionAttribute)_Attribs.ElementAt(0)).Description;
+                    return ((DescriptionAttribute)_Attribs.ElementAt(0)).Description;
                 }
             }
             return GenericEnum.ToString();
+        }
+
+        public static RideCoordinates GetCoordinatesFromGoogleMapsUrl(string str)
+        {
+            var mapString = HttpUtility.UrlDecode(str);
+            var coordinateRegex = new Regex("(-?\\d{1,3}\\.\\d+,-?\\d{1,3}\\.\\d+)");
+            var coordinateGroups = coordinateRegex.Matches(mapString);
+            var origin = coordinateGroups[0].ToString().Split(',');
+            var destination = coordinateGroups[1].ToString().Split(',');
+
+            return new RideCoordinates()
+            {
+                OriginLat = origin[0].Substring(0, Math.Min(origin[0].Length, 10)),
+                OriginLong = origin[1].Substring(0, Math.Min(origin[1].Length, 10)),
+                DestinationLat = destination[0].Substring(0, Math.Min(destination[0].Length, 10)),
+                DestinationLong = destination[1].Substring(0, Math.Min(destination[1].Length, 10)),
+            };
         }
     }
 }

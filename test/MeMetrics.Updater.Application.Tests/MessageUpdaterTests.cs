@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoMapper;
 using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
+using MeMetrics.Updater.Application.Profiles;
 using Microsoft.Extensions.Options;
 using Moq;
 using Newtonsoft.Json;
@@ -17,12 +19,20 @@ namespace MeMetrics.Updater.Application.Tests
 {
     public class MessageUpdaterTests
     {
+        public static Mock<ILogger> _loggerMock;
+        public static IMapper _mapper;
+        public MessageUpdaterTests()
+        {
+            var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<MessageProfile>(); });
+            _loggerMock = new Mock<ILogger>();
+            _mapper = new Mapper(configuration);
+        }
+
         [Fact]
         public async Task GetAndSaveMessages_ShouldSaveMessagesSuccessfully()
         {
             var memetricsApiMock = new Mock<IMeMetricsApi>();
             var gmailApiMock = new Mock<IGmailApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -52,6 +62,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
+                Id = messageId,
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
                 Payload = new MessagePart() { 
                     Headers = new List<MessagePartHeader>()
@@ -85,7 +96,6 @@ namespace MeMetrics.Updater.Application.Tests
                 IsIncoming = true,
                 Text = "Test",
                 IsMedia = false,
-                TextLength = 4,
                 ThreadId = 1,
                 Attachments = new List<Attachment>()
             };
@@ -95,7 +105,7 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new MessageUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
             memetricsApiMock.Verify(x => x.SaveMessage(It.Is<Objects.MeMetrics.Message>(z => validate(z))), Times.Once);
@@ -106,7 +116,6 @@ namespace MeMetrics.Updater.Application.Tests
         {
             var memetricsApiMock = new Mock<IMeMetricsApi>();
             var gmailApiMock = new Mock<IGmailApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -139,7 +148,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            var updater = new MessageUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
             memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
@@ -150,7 +159,6 @@ namespace MeMetrics.Updater.Application.Tests
         {
             var memetricsApiMock = new Mock<IMeMetricsApi>();
             var gmailApiMock = new Mock<IGmailApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -214,7 +222,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new MessageUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
             gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken));
@@ -226,7 +234,6 @@ namespace MeMetrics.Updater.Application.Tests
         {
             var memetricsApiMock = new Mock<IMeMetricsApi>();
             var gmailApiMock = new Mock<IGmailApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -256,7 +263,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             };
             gmailApiMock.Setup(x => x.GetAttachment(messageId, attachmentId)).ReturnsAsync(base64Image);
-            var updater = new MessageUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object);
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             var attachments = await updater.GetAttachments(messageId, email);
 
             gmailApiMock.Verify(x => x.GetAttachment(messageId, attachmentId), Times.Once);

@@ -22,7 +22,7 @@ namespace MeMetrics.Updater.Application.Objects.MeMetrics
 
         public bool IsMedia { get; set; }
 
-        public int TextLength { get; set; }
+        public int TextLength => Text.Length;
 
     }
 }

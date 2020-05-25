@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AutoMapper;
 using MeMetrics.Updater.Application.Helpers;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
@@ -14,14 +15,16 @@ namespace MeMetrics.Updater.Application
     public class TransactionUpdater : ITransactionUpdater
     {
         private readonly ILogger _logger;
+        private readonly IOptions<EnvironmentConfiguration> _configuration;
+        private readonly IMapper _mapper;
         private readonly IGmailApi _gmailApi;
         private readonly IPersonalCapitalApi _personalCapitalApi;
         private readonly IMeMetricsApi _memetricsApi;
-        private readonly IOptions<EnvironmentConfiguration> _configuration;
 
         public TransactionUpdater(
             ILogger logger, 
-            IOptions<EnvironmentConfiguration> configuration, 
+            IOptions<EnvironmentConfiguration> configuration,
+            IMapper mapper,
             IGmailApi gmailApi,
             IPersonalCapitalApi personalCapitalApi,
             IMeMetricsApi memetricsApi)
@@ -31,6 +34,7 @@ namespace MeMetrics.Updater.Application
             _gmailApi = gmailApi;
             _personalCapitalApi = personalCapitalApi;
             _memetricsApi = memetricsApi;
+            _mapper = mapper;
         }
 
         public async Task GetAndSaveTransactions()
@@ -47,19 +51,8 @@ namespace MeMetrics.Updater.Application
             {
                 foreach (var transactionData in transactions.SpData?.Transactions)
                 {
-                    var transaction = new Transaction()
-                    {
-                        TransactionId = transactionData.UserTransactionId,
-                        AccountId = transactionData.AccountId,
-                        AccountName = transactionData.AccountName,
-                        Amount = (decimal) transactionData.Amount,
-                        CategoryId = (int) transactionData.CategoryId,
-                        Description = transactionData.Description,
-                        IsCashIn = transactionData.IsCashIn,
-                        IsCashOut = transactionData.IsCashOut,
-                        MerchantId = transactionData.MerchantId,
-                        OccurredDate = transactionData.TransactionDate,
-                    };
+                    var transaction = _mapper.Map<Transaction>(transactionData);
+
                     await _memetricsApi.SaveTransaction(transaction);
                     transactionCount++;
                 }

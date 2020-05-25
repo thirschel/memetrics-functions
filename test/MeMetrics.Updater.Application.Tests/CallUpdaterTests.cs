@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using AutoMapper;
 using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
+using MeMetrics.Updater.Application.Profiles;
 using Microsoft.Extensions.Options;
 using Moq;
 using Newtonsoft.Json;
@@ -16,6 +18,15 @@ namespace MeMetrics.Updater.Application.Tests
 {
     public class CallUpdaterTests
     {
+        public static Mock<ILogger> _loggerMock;
+        public static IMapper _mapper;
+        public CallUpdaterTests()
+        {
+            var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<CallProfile>(); });
+            _loggerMock = new Mock<ILogger>();
+            _mapper = new Mapper(configuration);
+        }
+
         [Fact]
         public async Task GetAndSaveCalls_ShouldNotSaveCall_IfCallWasNotCompleted()
         {
@@ -52,7 +63,7 @@ namespace MeMetrics.Updater.Application.Tests
                 Snippet = "3128675309(missed call)"
             });
 
-            var updater = new CallUpdater(loggerMock.Object, gmailApiMock.Object, memetricsApiMock.Object, config);
+            var updater = new CallUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
             gmailApiMock.Verify(x => x.Authenticate(config.Value.Gmail_History_Refresh_Token), Times.Once);
@@ -93,6 +104,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
+                Id = messageId,
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
                 Snippet = "25s (00:00:25) 3128675309 (incoming call)",
                 Payload = new MessagePart() { Headers = new List<MessagePartHeader>()
@@ -115,7 +127,7 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new CallUpdater(loggerMock.Object, gmailApiMock.Object, memetricsApiMock.Object, config);
+            var updater = new CallUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
             memetricsApiMock.Verify(x => x.SaveCall(It.Is<Call>(z => validate(z))), Times.Once);
@@ -173,7 +185,7 @@ namespace MeMetrics.Updater.Application.Tests
                 Snippet = "25s (00:00:25) 3128675309 (incoming call)",
             });
 
-            var updater = new CallUpdater(loggerMock.Object, gmailApiMock.Object, memetricsApiMock.Object, config);
+            var updater = new CallUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
             memetricsApiMock.Verify(x => x.SaveCall(It.IsAny<Call>()), Times.Once);
@@ -234,7 +246,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            var updater = new CallUpdater(loggerMock.Object, gmailApiMock.Object, memetricsApiMock.Object, config);
+            var updater = new CallUpdater(loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
             gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Call_Log_Label, nextPageToken));

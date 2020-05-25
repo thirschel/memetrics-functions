@@ -1,22 +1,23 @@
 ﻿using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects.GroupMe;
 using Newtonsoft.Json;
 using Serilog;
 
+[assembly: InternalsVisibleTo("MeMetrics.Updater.Infrastructure.Tests")]
 namespace MeMetrics.Updater.Infrastructure.GroupMe
 {
     public class GroupMeApi : IGroupMeApi
     {
         private readonly string _baseUrl = "https://api.groupme.com/v3";
-        private string _token;
+        internal string _token;
         private readonly HttpClient _client;
         private readonly ILogger _logger;
 
 
         public GroupMeApi(
-            string token, 
             IHttpClientFactory httpClientFactory,
             ILogger logger)
         {

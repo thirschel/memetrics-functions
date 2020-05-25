@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
@@ -11,14 +12,15 @@ using Newtonsoft.Json;
 using Serilog;
 using OAuthToken = MeMetrics.Updater.Application.Objects.Gmail.OAuthToken;
 
+[assembly: InternalsVisibleTo("MeMetrics.Updater.Infrastructure.Tests")]
 namespace MeMetrics.Updater.Infrastructure.Gmail
 {
     public class GmailApi : IGmailApi
     {
         private readonly string _baseUrl = "https://www.googleapis.com";
-        private readonly string _clientId;
-        private readonly string _clientSecret;
-        private OAuthToken _token;
+        internal readonly string _clientId;
+        internal readonly string _clientSecret;
+        internal OAuthToken _token;
         private readonly HttpClient _client;
         private readonly ILogger _logger;
 
@@ -59,7 +61,7 @@ namespace MeMetrics.Updater.Infrastructure.Gmail
 
         public async Task<string> GetAttachment(string messageId, string attachmentId)
         {
-            var response  = await SendAsync<MessagePartBody>(HttpMethod.Get, $"/gmail/v1/users/me/messages/{messageId}/attachments/{attachmentId}");
+            var response = await SendAsync<MessagePartBody>(HttpMethod.Get, $"/gmail/v1/users/me/messages/{messageId}/attachments/{attachmentId}");
             var attachData = response.Data.Replace('-', '+');
             attachData = attachData.Replace('_', '/');
             return attachData;
@@ -74,11 +76,6 @@ namespace MeMetrics.Updater.Infrastructure.Gmail
         {
             var qp = pageToken != null ? $"&pageToken={pageToken}" : string.Empty;
             return await SendAsync<ListMessagesResponse>(HttpMethod.Get, $"/gmail/v1/users/me/messages?labelIds={labelId}{qp}");
-        }
-
-        public async Task<ListMessagesResponse> GetEmails()
-        {
-            return await SendAsync<ListMessagesResponse>(HttpMethod.Get,"/gmail/v1/users/me/messages");
         }
 
         private async Task<T> SendAsync<T>(HttpMethod httpMethod, string url,  HttpContent content = null)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using AutoMapper;
 using MeMetrics.Updater.Application.Helpers;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
@@ -15,26 +16,28 @@ namespace MeMetrics.Updater.Application
 {
     public class RecruitmentMessageUpdater : IRecruitmentMessageUpdater
     {
-        private int transactionCount = 0;
 
         private readonly ILogger _logger;
+        private readonly IOptions<EnvironmentConfiguration> _configuration;
         private readonly ILinkedInApi _linkedInApi;
         private readonly IGmailApi _gmailApi;
         private readonly IMeMetricsApi _memetricsApi;
-        private readonly IOptions<EnvironmentConfiguration> _configuration;
+        private readonly IMapper _mapper;
 
         public RecruitmentMessageUpdater(
             ILogger logger,
             IOptions<EnvironmentConfiguration> configuration,
             ILinkedInApi linkedInApi,
             IGmailApi gmailApi,
-            IMeMetricsApi memetricsApi)
+            IMeMetricsApi memetricsApi,
+            IMapper mapper)
         {
             _logger = logger;
             _configuration = configuration;
             _linkedInApi = linkedInApi;
             _gmailApi = gmailApi;
             _memetricsApi = memetricsApi;
+            _mapper = mapper;
         }
 
         public async Task GetAndSaveLinkedInMessages()
@@ -56,11 +59,11 @@ namespace MeMetrics.Updater.Application
 
                 await _linkedInApi.SubmitPin(code);
             }
-            await GetAndSaveRecruitmentMessages(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            var transactionCount = await GetAndSaveRecruitmentMessages(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), 0);
             _logger.Information($"{transactionCount} recruiter messages successfully saved");
         }
 
-        public async Task GetAndSaveRecruitmentMessages(long createdBeforeTime)
+        public async Task<int> GetAndSaveRecruitmentMessages(long createdBeforeTime, int transactionCount)
         {
             var hasFoundAllTodaysCalls = false;
             var messages = await _linkedInApi.GetConversations(createdBeforeTime);
@@ -68,20 +71,18 @@ namespace MeMetrics.Updater.Application
             {
                 if (hasFoundAllTodaysCalls)
                 {
-                    return;
+                    return transactionCount;
                 }
                 var conversationRegex = new Regex("urn:li:fs_conversation:(\\w?\\d+_?\\d*)");
-                var converationId = conversationRegex.Match(messages.Elements[i].EntityUrn).Groups[1].ToString();
-                var events = await _linkedInApi.GetConversationEvents(converationId);
+                var conversationId = conversationRegex.Match(messages.Elements[i].EntityUrn).Groups[1].ToString();
+                var events = await _linkedInApi.GetConversationEvents(conversationId);
 
                 if (messages.Elements[i]?.Participants[0]?.MessagingMember?.MiniProfile?.ObjectUrn == null)
                 {
                     continue;
                 }
+                var recruiter = messages.Elements[i].Participants.FirstOrDefault(p => p.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn);
 
-                var recruiter = messages.Elements[i].Participants[0].MessagingMember.MiniProfile;
-                var recruiterIdRegex = new Regex("urn:li:member:(\\d+)");
-                var recruiterId = recruiterIdRegex.Match(recruiter.ObjectUrn).Groups[1].ToString();
                 foreach (var element in events.Elements)
                 {
                     var subTypes = Enum.GetValues(typeof(LinkedInMessageSubType)).Cast<LinkedInMessageSubType>().Select(x => x.GetDescription());
@@ -91,24 +92,10 @@ namespace MeMetrics.Updater.Application
                         continue;
                     }
 
-                    var messageIdRegex = new Regex("urn:li:fs_event:\\(\\d+,(\\w+|\\d+|_)");
-                    var messageId = messageIdRegex.Match(element.EntityUrn).Groups[1].ToString();
-
-                    var message = new RecruitmentMessage()
-                    {
-                        RecruiterId = recruiterId,
-                        RecruitmentMessageId = messageId,
-                        RecruiterName = $"{recruiter.FirstName} {recruiter.LastName}",
-                        RecruiterCompany = recruiter.Occupation,
-                        MessageSource = RecruitmentMessageSource.LinkedIn,
-                        Subject = element.EventContent.MessageEvent.Subject,
-                        Body = element.EventContent.MessageEvent.Body == string.Empty ?
-                            element.EventContent.MessageEvent.AttributedBody.Text :
-                            element.EventContent.MessageEvent.Body,
-                        OccurredDate = DateTimeOffset.FromUnixTimeMilliseconds(element.CreatedAt),
-                        IsIncoming = element.From.MessagingMember.MiniProfile.ObjectUrn == recruiter.ObjectUrn
-                    };
-                    await _memetricsApi.SaveRecruitmentMessage(message);
+                    var recruitmentMessage = _mapper.Map<RecruitmentMessage>(element);
+                    recruitmentMessage = _mapper.Map(recruiter, recruitmentMessage);
+                    
+                    await _memetricsApi.SaveRecruitmentMessage(recruitmentMessage);
                     transactionCount++;
                 }
             }
@@ -116,12 +103,15 @@ namespace MeMetrics.Updater.Application
             var lastMessage = messages.Elements[messages.Elements.Length - 1].Events[0];
             if (messages.Elements.Any())
             {
-                await GetAndSaveRecruitmentMessages(lastMessage.CreatedAt);
+                return await GetAndSaveRecruitmentMessages(lastMessage.CreatedAt, transactionCount);
             }
+
+            return transactionCount;
         }
 
         public async Task GetAndSaveEmailMessages()
         {
+            var transactionCount = 0;
             await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
             var labels = await _gmailApi.GetLabels();
             var recruiterLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Recruiter_Label)?.Id;
@@ -138,30 +128,11 @@ namespace MeMetrics.Updater.Application
                     var email = await _gmailApi.GetEmail(messages[i].Id);
                     hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-2);
                     if (hasFoundAllTodaysCalls) return;
-                    var headers = email.Payload.Headers.GroupBy(x => x.Name).ToDictionary(x => x.Key, x => string.Join("", x.Select(y => y.Value)));
-                    var from = headers[Constants.EmailHeader.From];
-                    var to = headers[Constants.EmailHeader.To];
-                    var subject = headers[Constants.EmailHeader.Subject];
-                    var body = EmailHelper.GetBody(email);
-                    var regex = new Regex(@"(.*) <(.*)>", RegexOptions.IgnoreCase);
-                    var withHeader = !from.Contains(_configuration.Value.Gmail_Recruiter_Email_Address) ? from : to;
-                    withHeader = Regex.Replace(withHeader, "[\",]", "");
-                    var match = regex.Match(withHeader);
-                    var message = new RecruitmentMessage()
-                    {
-                        RecruiterId = match.Groups[2].Value,
-                        RecruitmentMessageId = messages[i].Id,
-                        RecruiterName = match.Groups[1].Value,
-                        RecruiterCompany = string.Empty,
-                        MessageSource = RecruitmentMessageSource.DirectEmail,
-                        Subject = subject,
-                        Body = body,
-                        OccurredDate = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value),
-                        IsIncoming = to.Contains(_configuration.Value.Gmail_Recruiter_Email_Address),
-                    };
+                    
+                    var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
+
                     await _memetricsApi.SaveRecruitmentMessage(message);
                     transactionCount++;
-
                 }
 
                 messages.Clear();
