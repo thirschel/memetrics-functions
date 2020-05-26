@@ -78,6 +78,7 @@ namespace MeMetrics.Updater.Application
 
         public async Task GetAndSaveLyftRides()
         {
+            await _lyftApi.Authenticate(_configuration.Value.Lyft_Cookie);
             var transactions = await ProcessLyftRides(0);
             _logger.Information($"{transactions} lyft transactions successfully saved");
         }

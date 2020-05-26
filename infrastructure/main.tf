@@ -28,13 +28,8 @@ locals {
     Gmail_Sms_Email_Address                       = var.gmail_sms_email_address
     Gmail_Recruiter_Email_Address                 = var.gmail_recruiter_email_address
 
-    Lyft_Refresh_Token                            = var.lyft_refresh_token
-    Lyft_Basic_Auth                               = var.lyft_basic_auth
     Lyft_Cookie                                   = var.lyft_cookie
 
-    Uber_Client_Id                                = var.uber_client_id
-    Uber_Client_Secret                            = var.uber_client_secret
-    Uber_Refresh_Token                            = var.uber_refresh_token
     Uber_Cookie                                   = var.uber_cookie
     Uber_User_Id                                  = var.uber_user_id
 

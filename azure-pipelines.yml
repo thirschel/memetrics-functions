@@ -193,12 +193,7 @@ stages:
                 TF_VAR_gmail_recruiter_label: 'Recruiter'
                 TF_VAR_gmail_sms_email_address: $(GmailSmsEmailAddress)
                 TF_VAR_gmail_recruiter_email_address: $(GmailRecruiterEmailAddress)
-                TF_VAR_lyft_refresh_token: $(LyftRefreshToken)
-                TF_VAR_lyft_basic_auth: $(LyftBasicAuth)
                 TF_VAR_lyft_cookie: $(LyftCookie)
-                TF_VAR_uber_client_id: $(UberClientId)
-                TF_VAR_uber_client_secret: $(UberClientSecret)
-                TF_VAR_uber_refresh_token: $(UberRefreshToken)
                 TF_VAR_uber_cookie: $(UberCookie)
                 TF_VAR_uber_user_id: $(UberUserId)
                 TF_VAR_groupme_access_token:  $(GroupMeAccessToken)

@@ -48,13 +48,8 @@ variable "gmail_linkedin_label" {}
 variable "gmail_sms_email_address" {}
 variable "gmail_recruiter_email_address" {}
 
-variable "lyft_refresh_token" {}
-variable "lyft_basic_auth" {}
 variable "lyft_cookie" {}
 
-variable "uber_client_id" {}
-variable "uber_client_secret" {}
-variable "uber_refresh_token" {}
 variable "uber_cookie" {}
 variable "uber_user_id" {}
 

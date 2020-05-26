@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -8,11 +6,8 @@ using Bogus;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Infrastructure.Lyft;
 using MeMetrics.Updater.Infrastructure.Tests.Helpers;
-using MeMetrics.Updater.Infrastructure.Uber;
 using Moq;
 using Moq.Protected;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Serilog;
 using Xunit;
 
