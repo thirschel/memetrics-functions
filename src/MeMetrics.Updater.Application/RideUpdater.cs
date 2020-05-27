@@ -54,10 +54,14 @@ namespace MeMetrics.Updater.Application
             foreach (var trip in trips.Data.Trips.TripsTrips)
             {
                 hasFoundAllTodaysRides = trip.RequestTime < DateTimeOffset.UtcNow.AddDays(-2);
+                if (hasFoundAllTodaysRides)
+                {
+                    return transactionCount;
+                }
                 var details = await _uberRidersApi.GetTripDetails(trip.Uuid.ToString());
 
                 if (details.Data.Trip.VehicleViewName.Contains(Constants.UberStatuses.UberEats) || trip.Status != Constants.UberStatuses.Completed ||
-                    trip.Status == Constants.UberStatuses.Canceled || hasFoundAllTodaysRides)
+                    trip.Status == Constants.UberStatuses.Canceled)
                 {
                     continue;
                 }

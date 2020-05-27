@@ -11,6 +11,7 @@ using MeMetrics.Updater.Functions;
 using MeMetrics.Updater.Infrastructure.Gmail;
 using MeMetrics.Updater.Infrastructure.GroupMe;
 using MeMetrics.Updater.Infrastructure.LinkedIn;
+using MeMetrics.Updater.Infrastructure.Lyft;
 using MeMetrics.Updater.Infrastructure.MeMetrics;
 using MeMetrics.Updater.Infrastructure.PersonalCapital;
 using MeMetrics.Updater.Infrastructure.Uber;
@@ -66,6 +67,7 @@ namespace MeMetrics.Updater.Functions
             builder.Services.AddScoped<IPersonalCapitalApi, PersonalCapitalApi>();
             builder.Services.AddScoped<IGmailApi, GmailApi>();
             builder.Services.AddScoped<IUberRidersApi, UberRidersApi>();
+            builder.Services.AddScoped<ILyftApi, LyftApi>();
             builder.Services.AddScoped<ILinkedInApi, LinkedInApi>();
             builder.Services.AddScoped<IGroupMeApi, GroupMeApi>();
             builder.Services.AddScoped<IMeMetricsApi, MeMetricsApi>();

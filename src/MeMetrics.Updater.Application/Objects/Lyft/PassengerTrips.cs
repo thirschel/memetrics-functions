@@ -48,7 +48,7 @@ namespace MeMetrics.Updater.Application.Objects.Lyft
         public string RideState { get; set; }
 
         [JsonProperty("rideType")]
-        public Enums.RideType RideType { get; set; }
+        public string RideType { get; set; }
 
         [JsonProperty("rideTypeLabel")]
         public string RideTypeLabel { get; set; }

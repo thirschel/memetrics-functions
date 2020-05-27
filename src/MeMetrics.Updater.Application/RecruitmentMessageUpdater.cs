@@ -93,7 +93,7 @@ namespace MeMetrics.Updater.Application
                     }
 
                     var recruitmentMessage = _mapper.Map<RecruitmentMessage>(element);
-                    recruitmentMessage = _mapper.Map(recruiter, recruitmentMessage);
+                    recruitmentMessage = _mapper.Map(recruiter.MessagingMember.MiniProfile, recruitmentMessage);
                     
                     await _memetricsApi.SaveRecruitmentMessage(recruitmentMessage);
                     transactionCount++;

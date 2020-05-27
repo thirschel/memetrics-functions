@@ -18,7 +18,8 @@ namespace MeMetrics.Updater.Application.Helpers
             {
                 return string.Empty;
             }
-
+            base64EncodedData = base64EncodedData.Replace('-', '+');
+            base64EncodedData = base64EncodedData.Replace('_', '/');
             var bytes = Convert.FromBase64String(base64EncodedData);
             return System.Text.Encoding.UTF8.GetString(bytes, 0, bytes.Length);
         }

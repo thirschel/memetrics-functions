@@ -45,7 +45,7 @@ namespace MeMetrics.Updater.Infrastructure.Uber
         public async Task Authenticate(string cookie, string userId)
         {
             _userId = userId;
-            var request = new HttpRequestMessage(HttpMethod.Get, new Uri("https://riders.uber.com/trips?offset=0 "));
+            var request = new HttpRequestMessage(HttpMethod.Get, new Uri("https://riders.uber.com/trips"));
             request.Headers.Add("Cookie", cookie);
             request.Headers.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8");
             var response = await _client.SendAsync(request);
