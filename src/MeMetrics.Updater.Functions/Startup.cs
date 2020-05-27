@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http;
+using System.Reflection;
+using AutoMapper;
 using MeMetrics.Updater.Application;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
+using MeMetrics.Updater.Application.Profiles;
 using MeMetrics.Updater.Functions;
 using MeMetrics.Updater.Infrastructure.Gmail;
 using MeMetrics.Updater.Infrastructure.GroupMe;
@@ -66,6 +69,16 @@ namespace MeMetrics.Updater.Functions
             builder.Services.AddScoped<ILinkedInApi, LinkedInApi>();
             builder.Services.AddScoped<IGroupMeApi, GroupMeApi>();
             builder.Services.AddScoped<IMeMetricsApi, MeMetricsApi>();
+
+            var configuration = new MapperConfiguration(cfg => { 
+                cfg.AddProfile<CallProfile>(); 
+                cfg.AddProfile<ChatMessageProfile>(); 
+                cfg.AddProfile<MessageProfile>(); 
+                cfg.AddProfile<RecruitmentMessageProfile>(); 
+                cfg.AddProfile<RideProfile>(); 
+                cfg.AddProfile<TransactionProfile>(); 
+            });
+            builder.Services.AddSingleton<IMapper>(new Mapper(configuration));
 
             // IHttpClientFactory named instances
             builder.Services.AddHttpClient(Constants.HttpClients.DisabledAutomaticCookieHandling)
