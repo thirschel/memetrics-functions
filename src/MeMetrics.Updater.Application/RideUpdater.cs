@@ -90,16 +90,17 @@ namespace MeMetrics.Updater.Application
         public async Task GetAndSaveLyftRides()
         {
             await _lyftApi.Authenticate(_configuration.Value.Lyft_Cookie);
-            var transactions = await ProcessLyftRides(0);
+            var transactions = await ProcessLyftRides(0, 0);
             _logger.Information($"{transactions} lyft transactions successfully saved");
         }
 
-        public async Task<int> ProcessLyftRides(int transactions, int offset = 0)
+        public async Task<int> ProcessLyftRides(int offset, int transactionCount)
         {
+            // This api does not provide coordinate data
             var trips = await _lyftApi.GetTrips(offset);
             if (trips?.Data == null)
             {
-                return transactions;
+                return transactionCount;
             }
 
             foreach (var trip in trips?.Data)
@@ -108,17 +109,21 @@ namespace MeMetrics.Updater.Application
                 var hasFoundAllTodaysRides = DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp) < DateTimeOffset.UtcNow.AddDays(-2);
                 if (hasFoundAllTodaysRides)
                 {
-                    return transactions;
+                    return transactionCount;
                 }
 
-                // This api does not provide coordinate data
+                if (trip.RideState?.ToLower() == Constants.LyftStatuses.Canceled)
+                {
+                    continue;
+                }
+
                 var ride = _mapper.Map<Ride>(trip);
 
                 await _memetricsApi.SaveRide(ride);
-                transactions++;
+                transactionCount++;
             }
 
-            return await ProcessLyftRides(transactions, offset + trips.Data.Length);
+            return await ProcessLyftRides(offset + trips.Data.Length, transactionCount);
         }
     }
 }

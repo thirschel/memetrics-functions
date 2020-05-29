@@ -29,5 +29,10 @@
             public static string Canceled = "CANCELED";
             public static string UberEats = "UberEATS";
         }
+
+        public static class LyftStatuses
+        {
+            public static string Canceled = "cancelled";
+        }
     }
 }
