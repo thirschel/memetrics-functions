@@ -107,13 +107,12 @@ namespace MeMetrics.Updater.Infrastructure.Tests
             var requestContent = new
             {
                 tripUUID = faker.Random.Uuid().ToString(),
-                uuid = faker.Random.Uuid().ToString()
+                tenancy = "uber/production"
             };
             var csrf = faker.Random.String2(40);
             var cookie = "jwt-session=1; path=/; expires=Fri, 22 May 2020 21:47:43 GMT; secure; httponly";
             api._csrf = csrf;
             api._cookie = cookie;
-            api._userId = requestContent.uuid;
 
             // ACT
             await api.GetTripDetails(requestContent.tripUUID);

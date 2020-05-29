@@ -129,7 +129,7 @@ namespace Uber.API.Objects
         public Guid ClientUuid { get; set; }
 
         [JsonProperty("driverUUID")]
-        public Guid DriverUuid { get; set; }
+        public Guid? DriverUuid { get; set; }
 
         [JsonProperty("paymentProfileUUID")]
         public Guid PaymentProfileUuid { get; set; }

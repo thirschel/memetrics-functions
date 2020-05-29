@@ -66,6 +66,13 @@ namespace MeMetrics.Updater.Application
                     continue;
                 }
 
+                // Uber's servers sometimes don't return a receipt even if they have it. It appears after the same call is made again
+                // the receipt is returned. Maybe some sort of cache miss on their side.
+                if (details.Data.Receipt == null)
+                {
+                    details = await _uberRidersApi.GetTripDetails(trip.Uuid.ToString());
+                }
+
                 var ride = _mapper.Map<Ride>(details.Data);
 
                 await _memetricsApi.SaveRide(ride);
@@ -87,9 +94,9 @@ namespace MeMetrics.Updater.Application
             _logger.Information($"{transactions} lyft transactions successfully saved");
         }
 
-        public async Task<int> ProcessLyftRides(int transactions)
+        public async Task<int> ProcessLyftRides(int transactions, int offset = 0)
         {
-            var trips = await _lyftApi.GetTrips();
+            var trips = await _lyftApi.GetTrips(offset);
             if (trips?.Data == null)
             {
                 return transactions;
@@ -97,7 +104,8 @@ namespace MeMetrics.Updater.Application
 
             foreach (var trip in trips?.Data)
             {
-                var hasFoundAllTodaysRides = DateTimeOffset.FromUnixTimeMilliseconds(trip.RequestTimestamp).Date < DateTimeOffset.UtcNow.AddDays(-2);
+                // Times come in as an unix epoch (seconds)
+                var hasFoundAllTodaysRides = DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp) < DateTimeOffset.UtcNow.AddDays(-2);
                 if (hasFoundAllTodaysRides)
                 {
                     return transactions;
@@ -110,7 +118,7 @@ namespace MeMetrics.Updater.Application
                 transactions++;
             }
 
-            return transactions;
+            return await ProcessLyftRides(transactions, offset + trips.Data.Length);
         }
     }
 }

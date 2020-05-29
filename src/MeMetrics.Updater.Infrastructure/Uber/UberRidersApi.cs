@@ -89,7 +89,7 @@ namespace MeMetrics.Updater.Infrastructure.Uber
         {
             var request = new HttpRequestMessage(HttpMethod.Post, new Uri("https://riders.uber.com/api/getTrip"))
             {
-                Content = new StringContent("{\"tripUUID\":\"" + tripId + "\",\"uuid\":\"" + _userId + "\"}", Encoding.UTF8, "application/json")
+                Content = new StringContent("{\"tripUUID\":\"" + tripId + "\",\"tenancy\":\"uber/production\"}", Encoding.UTF8, "application/json")
             };
             request.Headers.Add("Cookie", _cookie);
             request.Headers.Add("x-csrf-token", _csrf);

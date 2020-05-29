@@ -77,9 +77,9 @@ namespace MeMetrics.Updater.Application.Tests.Profiles
             var tripFaker = new Faker<Trip>()
                 .RuleFor(f => f.RideId, f => f.Random.String2(32))
                 .RuleFor(f => f.Distance, f => f.Random.Long(0))
-                .RuleFor(f => f.RequestTimestamp, f => f.Date.PastOffset().ToUnixTimeMilliseconds())
-                .RuleFor(f => f.DropoffTimestamp, f => f.Date.PastOffset().ToUnixTimeMilliseconds())
-                .RuleFor(f => f.PickupTimestamp, f => f.Date.PastOffset().ToUnixTimeMilliseconds())
+                .RuleFor(f => f.RequestTimestamp, f => f.Date.PastOffset().ToUnixTimeSeconds())
+                .RuleFor(f => f.DropoffTimestamp, f => f.Date.PastOffset().ToUnixTimeSeconds())
+                .RuleFor(f => f.PickupTimestamp, f => f.Date.PastOffset().ToUnixTimeSeconds())
                 .RuleFor(f => f.TotalMoney, f =>
                 {
                     return new TotalMoney()
@@ -99,9 +99,9 @@ namespace MeMetrics.Updater.Application.Tests.Profiles
             Assert.Equal(trip.RideId, ride.RideId);
             Assert.Equal(RideType.Lyft, ride.RideType);
             Assert.Equal(trip.Distance, ride.Distance);
-            Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(trip.RequestTimestamp), ride.RequestDate);
-            Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(trip.DropoffTimestamp), ride.DropoffDate);
-            Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(trip.PickupTimestamp), ride.PickupDate);
+            Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp), ride.RequestDate);
+            Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.DropoffTimestamp), ride.DropoffDate);
+            Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.PickupTimestamp), ride.PickupDate);
             Assert.Equal((decimal)trip.TotalMoney.Amount / 100, ride.Price);
         }
     }

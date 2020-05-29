@@ -268,13 +268,13 @@ namespace MeMetrics.Updater.Application.Tests
                 Gmail_Call_Log_Label = "CallLogLabel",
             });
 
-            lyftApiMock.Setup(x => x.GetTrips(It.IsAny<int>())).ReturnsAsync(new PassengerTrips()
+            lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
             {
                 Data = new Trip[]
                 {
                     new Trip()
                     {
-                        RequestTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+                        RequestTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds(),
                     },
                 }
             });
@@ -297,17 +297,17 @@ namespace MeMetrics.Updater.Application.Tests
                 Gmail_Call_Log_Label = "CallLogLabel",
             });
 
-            lyftApiMock.Setup(x => x.GetTrips(It.IsAny<int>())).ReturnsAsync(new PassengerTrips()
+            lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
             {
                 Data = new Trip[]
                 {
                     new Trip()
                     {
-                        RequestTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds()
+                        RequestTimestamp = DateTimeOffset.Now.ToUnixTimeSeconds()
                     },
                     new Trip()
                     {
-                        RequestTimestamp = DateTimeOffset.Now.AddDays(-3).ToUnixTimeMilliseconds()
+                        RequestTimestamp = DateTimeOffset.Now.AddDays(-3).ToUnixTimeSeconds()
                     },
                 }
             });

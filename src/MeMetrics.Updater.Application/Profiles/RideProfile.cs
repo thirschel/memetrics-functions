@@ -35,9 +35,9 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.RideId, source => source.MapFrom(x => x.RideId))
                 .ForMember(dest => dest.RideType, source => source.MapFrom(x => RideType.Lyft))
                 .ForMember(dest => dest.Distance, source => source.MapFrom(x => x.Distance))
-                .ForMember(dest => dest.RequestDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeMilliseconds(x.RequestTimestamp)))
-                .ForMember(dest => dest.DropoffDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeMilliseconds(x.DropoffTimestamp)))
-                .ForMember(dest => dest.PickupDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeMilliseconds(x.PickupTimestamp)))
+                .ForMember(dest => dest.RequestDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.RequestTimestamp)))
+                .ForMember(dest => dest.DropoffDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.DropoffTimestamp)))
+                .ForMember(dest => dest.PickupDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.PickupTimestamp)))
                 .ForMember(dest => dest.Price, source => source.MapFrom(x => (decimal)x.TotalMoney.Amount / 100));
         }
     }
