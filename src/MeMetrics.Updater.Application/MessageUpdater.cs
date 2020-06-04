@@ -62,6 +62,11 @@ namespace MeMetrics.Updater.Application
                     {
                         return;
                     }
+                    var phoneNumber = Utility.FormatStringToPhoneNumber(email.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value);
+                    if (phoneNumber.Length < 11 || Constants.PhoneNumberBlacklist.Contains(phoneNumber))
+                    {
+                        continue;
+                    }
 
                     var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
                     message.Attachments = await GetAttachments(messages[i].Id, email);

@@ -1,4 +1,6 @@
-﻿namespace MeMetrics.Updater.Application.Objects
+﻿using System.Collections.Generic;
+
+namespace MeMetrics.Updater.Application.Objects
 {
     public class Constants
     {
@@ -34,5 +36,15 @@
         {
             public static string Canceled = "cancelled";
         }
+
+        public static List<string> PhoneNumberBlacklist = new List<string>()
+        {
+            "14157893023",
+            "13126675815",
+            "800050001020",
+            // This is how verizon messages get uploaded to gmail
+            "VerizonWireless"
+
+        };
     }
 }

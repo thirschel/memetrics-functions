@@ -155,6 +155,138 @@ namespace MeMetrics.Updater.Application.Tests
         }
 
         [Fact]
+        public async Task GetAndSaveMessages_ShouldNotSaveMessage_WhenPhoneNumberIsLessThan11Numbers()
+        {
+            var memetricsApiMock = new Mock<IMeMetricsApi>();
+            var gmailApiMock = new Mock<IGmailApi>();
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Gmail_History_Refresh_Token = "HistoryToken",
+                Gmail_Sms_Label = "SmsLabel",
+                Gmail_Sms_Email_Address = "myEmail@address.com"
+            });
+
+            var messageId = "1";
+
+            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            {
+                Labels = new List<Label>()
+                {
+                    new Label(){ Name = config.Value.Gmail_Sms_Label, Id = config.Value.Gmail_Sms_Label}
+                }
+            });
+
+            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            {
+                Messages = new List<Message>()
+                {
+                    new Message() { Id = messageId }
+                },
+            });
+
+
+            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            {
+                Id = messageId,
+                InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+                Payload = new MessagePart()
+                {
+                    Headers = new List<MessagePartHeader>()
+                    {
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.Date, Value = "Sat, 04 Apr 2020 11:47:41 -0500" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.From, Value = "2FA code <12345@unknown.email>" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.To, Value = config.Value.Gmail_Sms_Email_Address },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.ThreadId, Value = "1" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.PhoneNumber, Value = "12345" },
+                    },
+                    Parts = new List<MessagePart>()
+                    {
+                        new MessagePart()
+                        {
+                            MimeType = Constants.EmailHeader.MimeType_Text,
+                            Body = new MessagePartBody()
+                            {
+                                Data = "VGVzdA=="
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            await updater.GetAndSaveMessages();
+
+            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task GetAndSaveMessages_ShouldNotSaveMessage_WhenPhoneNumberIsBlacklisted()
+        {
+            var memetricsApiMock = new Mock<IMeMetricsApi>();
+            var gmailApiMock = new Mock<IGmailApi>();
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Gmail_History_Refresh_Token = "HistoryToken",
+                Gmail_Sms_Label = "SmsLabel",
+                Gmail_Sms_Email_Address = "myEmail@address.com"
+            });
+
+            var messageId = "1";
+
+            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            {
+                Labels = new List<Label>()
+                {
+                    new Label(){ Name = config.Value.Gmail_Sms_Label, Id = config.Value.Gmail_Sms_Label}
+                }
+            });
+
+            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            {
+                Messages = new List<Message>()
+                {
+                    new Message() { Id = messageId }
+                },
+            });
+
+
+            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            {
+                Id = messageId,
+                InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
+                Payload = new MessagePart()
+                {
+                    Headers = new List<MessagePartHeader>()
+                    {
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.Date, Value = "Sat, 04 Apr 2020 11:47:41 -0500" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.From, Value = $"2FA code <{Constants.PhoneNumberBlacklist[0]}@unknown.email>" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.To, Value = config.Value.Gmail_Sms_Email_Address },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.ThreadId, Value = "1" },
+                        new MessagePartHeader(){ Name = Constants.EmailHeader.PhoneNumber, Value = Constants.PhoneNumberBlacklist[0] },
+                    },
+                    Parts = new List<MessagePart>()
+                    {
+                        new MessagePart()
+                        {
+                            MimeType = Constants.EmailHeader.MimeType_Text,
+                            Body = new MessagePartBody()
+                            {
+                                Data = "VGVzdA=="
+                            }
+                        }
+                    }
+                }
+            });
+
+
+            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            await updater.GetAndSaveMessages();
+
+            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+        }
+
+        [Fact]
         public async Task GetAndSaveMessages_ShouldUseNextPageToken_IfOutOfMessages()
         {
             var memetricsApiMock = new Mock<IMeMetricsApi>();
