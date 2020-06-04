@@ -16,7 +16,7 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.MessageId, source => source.MapFrom(x => x.Id))
                 .ForMember(dest => dest.PhoneNumber, source => source.MapFrom(x => Utility.FormatStringToPhoneNumber(x.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value)))
                 .ForMember(dest => dest.Text, source => source.MapFrom(x => EmailHelper.GetBody(x)))
-                .ForMember(dest => dest.ThreadId, source => source.MapFrom(x => int.Parse(x.Payload.Headers.First(x => x.Name == Constants.EmailHeader.ThreadId).Value)))
+                .ForMember(dest => dest.ThreadId, source => source.MapFrom(x => x.Payload.Headers.First(x => x.Name == Constants.EmailHeader.ThreadId).Value))
                 .ForMember(dest => dest.OccurredDate, source => source.MapFrom(src => DateTimeOffset.Parse(src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.Date).Value)))
                 .ForMember(dest => dest.Name, source => source.MapFrom((src, dest, destMember, context) =>
                 {

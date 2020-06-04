@@ -13,7 +13,7 @@ namespace MeMetrics.Updater.Application.Objects.MeMetrics
         public string Text { get; set; }
         public bool IsMedia { get; set; }
         public int TextLength => this.Text.Length;
-        public int ThreadId { get; set; }
+        public string ThreadId { get; set; }
         public List<Attachment> Attachments { get; set; }
     }
 }

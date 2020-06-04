@@ -96,7 +96,7 @@ namespace MeMetrics.Updater.Application.Tests
                 IsIncoming = true,
                 Text = "Test",
                 IsMedia = false,
-                ThreadId = 1,
+                ThreadId = "1",
                 Attachments = new List<Attachment>()
             };
 
