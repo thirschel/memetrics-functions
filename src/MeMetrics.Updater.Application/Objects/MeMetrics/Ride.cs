@@ -25,6 +25,7 @@ namespace MeMetrics.Updater.Application.Objects.MeMetrics
 
         public decimal? Price { get; set; }
 
+        // Returned in meters
         public decimal? Distance { get; set; }
   }
 }

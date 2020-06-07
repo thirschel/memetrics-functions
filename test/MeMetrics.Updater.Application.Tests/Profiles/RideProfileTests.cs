@@ -98,7 +98,7 @@ namespace MeMetrics.Updater.Application.Tests.Profiles
             // ASSERT
             Assert.Equal(trip.RideId, ride.RideId);
             Assert.Equal(RideType.Lyft, ride.RideType);
-            Assert.Equal(trip.Distance, ride.Distance);
+            Assert.Equal((decimal?) Math.Round(trip.Distance * 0.00062137, 2), ride.Distance);
             Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp), ride.RequestDate);
             Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.DropoffTimestamp), ride.DropoffDate);
             Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(trip.PickupTimestamp), ride.PickupDate);

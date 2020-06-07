@@ -34,7 +34,8 @@ namespace MeMetrics.Updater.Application.Profiles
             CreateMap<Objects.Lyft.Trip, Objects.MeMetrics.Ride>()
                 .ForMember(dest => dest.RideId, source => source.MapFrom(x => x.RideId))
                 .ForMember(dest => dest.RideType, source => source.MapFrom(x => RideType.Lyft))
-                .ForMember(dest => dest.Distance, source => source.MapFrom(x => x.Distance))
+                // Distance is returned from lyft in meters
+                .ForMember(dest => dest.Distance, source => source.MapFrom(x => Math.Round(x.Distance * 0.00062137, 2)))
                 .ForMember(dest => dest.RequestDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.RequestTimestamp)))
                 .ForMember(dest => dest.DropoffDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.DropoffTimestamp)))
                 .ForMember(dest => dest.PickupDate, source => source.MapFrom(x => DateTimeOffset.FromUnixTimeSeconds(x.PickupTimestamp)))
