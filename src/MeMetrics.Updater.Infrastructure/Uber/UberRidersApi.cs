@@ -64,6 +64,7 @@ namespace MeMetrics.Updater.Infrastructure.Uber
             var result = await response.Content.ReadAsStringAsync();
             var regex = new Regex("CSRF_TOKEN__\" type=\"application/json\">\\\\u0022(\\d+-(\\w|\\d|-)+)");
 
+            _logger.Information(result);
             _csrf = regex.Match(result).Groups[1].ToString();
             _cookie = string.Join(";", splitCookie);
 
@@ -82,6 +83,8 @@ namespace MeMetrics.Updater.Infrastructure.Uber
 
             var response = await _client.SendAsync(request);
             var result = await response.Content.ReadAsStringAsync();
+
+            _logger.Information(result);
             return JsonConvert.DeserializeObject<TripsResponse>(result);
         }
 
