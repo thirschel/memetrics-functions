@@ -43,7 +43,12 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.RecruiterCompany, source => source.MapFrom(x => string.Empty))
                 .ForMember(dest => dest.MessageSource, source => source.MapFrom(x => RecruitmentMessageSource.DirectEmail))
                 .ForMember(dest => dest.Subject, source => source.MapFrom(x => x.Payload.Headers.First(x => x.Name == Constants.EmailHeader.Subject).Value))
-                .ForMember(dest => dest.OccurredDate, source => source.MapFrom(x => DateTimeOffset.Parse(x.Payload.Headers.First(x => x.Name == Constants.EmailHeader.Date).Value)))
+                .ForMember(dest => dest.OccurredDate, (source) => source.MapFrom((src, dest, destMember, context) =>
+                {
+                    var dateValue = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.Date).Value;
+                    dateValue = Regex.Replace(dateValue, "\\(\\w{3,4}\\)", string.Empty);
+                    return DateTimeOffset.Parse(dateValue);
+                }))
                 .ForMember(dest => dest.Body, source => source.MapFrom(x => EmailHelper.GetBody(x)))
                 .ForMember(dest => dest.RecruiterName, source => source.MapFrom((src, dest, destMember, context) =>
                 {

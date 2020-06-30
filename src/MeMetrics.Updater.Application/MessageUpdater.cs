@@ -23,6 +23,7 @@ namespace MeMetrics.Updater.Application
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IOptions<EnvironmentConfiguration> _configuration;
         private readonly IMapper _mapper;
+        private readonly int _daysToQuery = 2;
 
         public MessageUpdater(
             ILogger logger, 
@@ -57,7 +58,7 @@ namespace MeMetrics.Updater.Application
                 for (var i = 0; i < messages.Count; i++)
                 {
                     var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-2);
+                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                     if (hasFoundAllTodaysCalls)
                     {
                         return;

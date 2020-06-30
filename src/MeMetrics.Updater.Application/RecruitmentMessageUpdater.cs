@@ -23,6 +23,7 @@ namespace MeMetrics.Updater.Application
         private readonly IGmailApi _gmailApi;
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IMapper _mapper;
+        private readonly int _daysToQuery = 2;
 
         public RecruitmentMessageUpdater(
             ILogger logger,
@@ -86,7 +87,7 @@ namespace MeMetrics.Updater.Application
                 foreach (var element in events.Elements)
                 {
                     var subTypes = Enum.GetValues(typeof(LinkedInMessageSubType)).Cast<LinkedInMessageSubType>().Select(x => x.GetDescription());
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(element.CreatedAt) < DateTimeOffset.UtcNow.AddDays(-2);
+                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(element.CreatedAt) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                     if (!subTypes.Contains(element.Subtype) || hasFoundAllTodaysCalls)
                     {
                         continue;
@@ -126,7 +127,7 @@ namespace MeMetrics.Updater.Application
                 for (var i = 0; i < messages.Count; i++)
                 {
                     var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-2);
+                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                     if (hasFoundAllTodaysCalls) return;
                     
                     var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
