@@ -24,7 +24,7 @@ namespace MeMetrics.Updater.Application.Tests.Profiles
             var destinationLat = faker.Address.Latitude().ToString();
             var recieptFaker = new Faker<Receipt>()
                 .RuleFor(f => f.Distance, f => f.Random.Decimal().ToString())
-                .RuleFor(f => f.Duration, f => $"{duration:hh\\:mm\\:ss}");
+                .RuleFor(f => f.DurationIso, f => $"{duration:hh\\:mm\\:ss}");
 
             var tripFaker = new Faker<Uber.API.Objects.Trip>()
                 .RuleFor(f => f.Uuid, f => f.Random.Guid())

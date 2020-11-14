@@ -18,6 +18,7 @@ namespace MeMetrics.Updater.Application
         private readonly IUberRidersApi _uberRidersApi;
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IMapper _mapper;
+        private readonly int _daysToQuery = 2;
 
         public RideUpdater(
             ILogger logger,
@@ -53,7 +54,7 @@ namespace MeMetrics.Updater.Application
 
             foreach (var trip in trips.Data.Trips.TripsTrips)
             {
-                hasFoundAllTodaysRides = trip.RequestTime < DateTimeOffset.UtcNow.AddDays(-2);
+                hasFoundAllTodaysRides = trip.RequestTime < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                 if (hasFoundAllTodaysRides)
                 {
                     return transactionCount;
@@ -106,7 +107,7 @@ namespace MeMetrics.Updater.Application
             foreach (var trip in trips?.Data)
             {
                 // Times come in as an unix epoch (seconds)
-                var hasFoundAllTodaysRides = DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp) < DateTimeOffset.UtcNow.AddDays(-2);
+                var hasFoundAllTodaysRides = DateTimeOffset.FromUnixTimeSeconds(trip.RequestTimestamp) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                 if (hasFoundAllTodaysRides)
                 {
                     return transactionCount;

@@ -25,7 +25,7 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.DestinationLong, source => source.MapFrom((src, dest) => src.TripMap?.Url != null ? Utility.GetCoordinatesFromGoogleMapsUrl(src.TripMap.Url.ToString()).DestinationLong : _placeHolderCoordinate))
                 .ForMember(dest => dest.PickupDate, source => source.MapFrom((src, dest, destMember, context) =>
                 {
-                    var tripDurations = Regex.Match(src.Receipt.Duration, @"(\d+):(\d+):(\d+)");
+                    var tripDurations = Regex.Match(src.Receipt.DurationIso, @"(\d+):(\d+):(\d+)");
                     var timespan = new TimeSpan(0, int.Parse(tripDurations.Groups[1].Value), int.Parse(tripDurations.Groups[2].Value), int.Parse(tripDurations.Groups[3].Value));
                     var pickup = src.Trip.DropoffTime.Value.Subtract(timespan);
                     return new DateTimeOffset(pickup.Year, pickup.Month, pickup.Day, pickup.Hour, pickup.Minute, pickup.Second, pickup.Offset);

@@ -70,7 +70,7 @@ namespace MeMetrics.Updater.Application.Tests
                     },
                     Receipt = new Receipt()
                     {
-                        Duration = "(00:00:00)"
+                        DurationIso = "00:00:00"
                     }
                 },
 
@@ -132,7 +132,7 @@ namespace MeMetrics.Updater.Application.Tests
                     },
                     Receipt = new Receipt()
                     {
-                        Duration = "(00:00:00)"
+                        DurationIso = "00:00:00"
                     }
                 },
 
@@ -189,7 +189,7 @@ namespace MeMetrics.Updater.Application.Tests
                     },
                     Receipt = new Receipt()
                     {
-                        Duration = "(00:00:00)"
+                        DurationIso = "00:00:00"
                     }
                 },
 
@@ -244,7 +244,7 @@ namespace MeMetrics.Updater.Application.Tests
                     },
                     Receipt = new Receipt()
                     {
-                        Duration = "(00:00:00)"
+                        DurationIso = "00:00:00"
                     }
                 },
 

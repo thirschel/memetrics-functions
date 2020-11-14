@@ -17,9 +17,10 @@ namespace MeMetrics.Updater.Application
         private readonly ILogger _logger;
         private readonly IOptions<EnvironmentConfiguration> _configuration;
         private readonly IMapper _mapper;
-        private readonly IGmailApi _gmailApi;
         private readonly IPersonalCapitalApi _personalCapitalApi;
         private readonly IMeMetricsApi _memetricsApi;
+        private readonly int _daysToQuery = 2;
+
 
         public TransactionUpdater(
             ILogger logger, 
@@ -31,7 +32,6 @@ namespace MeMetrics.Updater.Application
         {
             _logger = logger;
             _configuration = configuration;
-            _gmailApi = gmailApi;
             _personalCapitalApi = personalCapitalApi;
             _memetricsApi = memetricsApi;
             _mapper = mapper;
@@ -42,7 +42,7 @@ namespace MeMetrics.Updater.Application
             int transactionCount = 0;
             await _personalCapitalApi.Authenticate(_configuration.Value.Personal_Capital_Username, _configuration.Value.Personal_Capital_Password, _configuration.Value.Personal_Capital_PMData);
 
-            var startDate = DateTime.Now.AddDays(-2);
+            var startDate = DateTime.Now.AddDays(-_daysToQuery);
             var endDate = DateTime.Now;
             var startTime = $"{startDate.Year}-{Utility.AddPadding(startDate.Month)}-{Utility.AddPadding(startDate.Day)}";
             var endTime = $"{endDate.Year}-{Utility.AddPadding(endDate.Month)}-{Utility.AddPadding(endDate.Day)}";

@@ -52,9 +52,9 @@ namespace MeMetrics.Updater.Functions
                 await _chatMessageUpdater.GetAndSaveChatMessages();
                 await _recruitmentMessageUpdater.GetAndSaveEmailMessages();
                 await _recruitmentMessageUpdater.GetAndSaveLinkedInMessages();
+                await _transactionUpdater.GetAndSaveTransactions();
                 await _rideUpdater.GetAndSaveUberRides();
                 await _rideUpdater.GetAndSaveLyftRides();
-                await _transactionUpdater.GetAndSaveTransactions();
 
                 await _cacheUpdater.CacheMeMetrics();
             }

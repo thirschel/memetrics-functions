@@ -18,6 +18,8 @@ namespace MeMetrics.Updater.Application
         private readonly IGroupMeApi _groupMeApi;
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IMapper _mapper;
+        private readonly int _daysToQuery = 2;
+
 
         public ChatMessageUpdater(
             ILogger logger, 
@@ -57,7 +59,7 @@ namespace MeMetrics.Updater.Application
             foreach (var message in messageResponse.Response.Messages)
             {
                 processedAllTodaysMessages = DateTimeOffset.FromUnixTimeMilliseconds(message.CreatedAt) <
-                                             DateTimeOffset.UtcNow.AddDays(-1);
+                                             DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                 if (message.Event != null || processedAllTodaysMessages)
                 {
                     continue;

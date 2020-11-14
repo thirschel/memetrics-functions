@@ -63,6 +63,9 @@ namespace MeMetrics.Updater.Application.Objects.Uber
         [JsonProperty("duration")]
         public string Duration { get; set; }
 
+        [JsonProperty("duration_iso8601")]
+        public string DurationIso { get; set; }
+
         [JsonProperty("vehicle_type")]
         public string VehicleType { get; set; }
 
