@@ -19,7 +19,7 @@ namespace MeMetrics.Updater.Application
         private readonly IMapper _mapper;
         private readonly IPersonalCapitalApi _personalCapitalApi;
         private readonly IMeMetricsApi _memetricsApi;
-        private readonly int _daysToQuery = 2;
+        private readonly int _daysToQuery = 50;
 
 
         public TransactionUpdater(
