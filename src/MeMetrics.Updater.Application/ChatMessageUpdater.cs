@@ -35,16 +35,26 @@ namespace MeMetrics.Updater.Application
             _groupMeApi.Authenticate(configuration.Value.GroupMe_Access_Token);
         }
 
-        public async Task GetAndSaveChatMessages()
+        public async Task<UpdaterResponse> GetAndSaveChatMessages()
         {
-            var groupResponse = await _groupMeApi.GetGroups();
-            var transactionCount = 0;
-            for (var i = 0; i < groupResponse.Groups.Length; i++)
+            try
             {
-                transactionCount = await GetAndSaveMessages(groupResponse.Groups[i], transactionCount);
-            }
+                _logger.Information("Starting chat message updater");
+                var groupResponse = await _groupMeApi.GetGroups();
+                var transactionCount = 0;
+                for (var i = 0; i < groupResponse.Groups.Length; i++)
+                {
+                    transactionCount = await GetAndSaveMessages(groupResponse.Groups[i], transactionCount);
+                }
 
-            _logger.Information($"{transactionCount} groupme messages successfully saved");
+                _logger.Information($"Finished chat message updater. {transactionCount} chat messages successfully saved");
+                return new UpdaterResponse() { Successful = true };
+            }
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save chat messages");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
 
         private async Task<int> GetAndSaveMessages(Group group, int transactionCount = 0, string lastMessageId = null)

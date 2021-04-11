@@ -86,8 +86,6 @@ namespace MeMetrics.Updater.Infrastructure.LinkedIn
             var loginHtml = await loginPageResponse.Content.ReadAsStringAsync();
 
             var loginData = GetHiddenInputFields(loginHtml);
-            _logger.Information(loginPageResponse.RequestMessage.RequestUri.AbsoluteUri);
-            _logger.Information(loginHtml);
             _csrf = loginData["csrfToken"];
 
             loginData.Add("session_key", username);
@@ -102,8 +100,7 @@ namespace MeMetrics.Updater.Infrastructure.LinkedIn
             {
                 _logger.Information("Linkedin Challenge found");
                 _logger.Information(loginSubmissionHtml);
-                var formData = new Dictionary<string, string>();
-                formData = GetHiddenInputFields(loginSubmissionHtml);
+                var formData = GetHiddenInputFields(loginSubmissionHtml);
                 _challengeData = formData;
                 return true;
             }

@@ -17,34 +17,36 @@ namespace MeMetrics.Updater.Application.Tests
     {
 
         public static Mock<ILogger> _loggerMock;
+        public static Mock<IMeMetricsApi> _memetricsApiMock;
+        public static Mock<IGmailApi> _gmailApiMock;
+        public static Mock<IPersonalCapitalApi> _personalCapitalApiMock;
         public static IMapper _mapper;
         public TransactionUpdaterTests()
         {
             var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<TransactionProfile>(); });
             _loggerMock = new Mock<ILogger>();
             _mapper = new Mapper(configuration);
+            _memetricsApiMock = new Mock<IMeMetricsApi>();
+            _gmailApiMock = new Mock<IGmailApi>();
+            _personalCapitalApiMock = new Mock<IPersonalCapitalApi>();
         }
         [Fact]
         public async Task GetAndSaveTransactions_ShouldSaveTransactionsCorrectly()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var loggerMock = new Mock<ILogger>();
-            var gmailApiMock = new Mock<IGmailApi>();
-            var personalCapitalApiMock = new Mock<IPersonalCapitalApi>();
-
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Personal_Capital_PMData = "Data",
                 Personal_Capital_Password = "Password",
                 Personal_Capital_Username = "UserName"
             });
+
             var updater = new TransactionUpdater(
-                loggerMock.Object, 
+                _loggerMock.Object, 
                 config, 
                 _mapper,
-                gmailApiMock.Object, 
-                personalCapitalApiMock.Object, 
-                memetricsApiMock.Object);
+                _gmailApiMock.Object,
+                _personalCapitalApiMock.Object,
+                _memetricsApiMock.Object);
 
 
             var userTransactionId = "1";
@@ -58,7 +60,7 @@ namespace MeMetrics.Updater.Application.Tests
             var merchantId = "Merchant";
             var transactionDate = DateTimeOffset.Now;
 
-            personalCapitalApiMock.Setup(x => x.GetUserTransactions(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(new UserTransactions()
+            _personalCapitalApiMock.Setup(x => x.GetUserTransactions(It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(new UserTransactions()
             {
                 SpData = new TransactionData()
                 {
@@ -102,8 +104,34 @@ namespace MeMetrics.Updater.Application.Tests
 
             await updater.GetAndSaveTransactions();
 
-            personalCapitalApiMock.Verify(x => x.Authenticate(config.Value.Personal_Capital_Username, config.Value.Personal_Capital_Password, config.Value.Personal_Capital_PMData), Times.Once);
-            memetricsApiMock.Verify(x => x.SaveTransaction(It.Is<Objects.MeMetrics.Transaction>(x => validate(x))), Times.Once);
+            _personalCapitalApiMock.Verify(x => x.Authenticate(config.Value.Personal_Capital_Username, config.Value.Personal_Capital_Password, config.Value.Personal_Capital_PMData), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveTransaction(It.Is<Objects.MeMetrics.Transaction>(x => validate(x))), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAndSaveTransactions_ShouldReturnSuccessfully_WhenCatchingException()
+        {
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Personal_Capital_PMData = "Data",
+                Personal_Capital_Password = "Password",
+                Personal_Capital_Username = "UserName"
+            });
+
+            _personalCapitalApiMock.Setup(x => x.GetUserTransactions(It.IsAny<string>(), It.IsAny<string>())).ThrowsAsync(new Exception());
+
+            var updater = new TransactionUpdater(
+                _loggerMock.Object,
+                config,
+                _mapper,
+                _gmailApiMock.Object,
+                _personalCapitalApiMock.Object,
+                _memetricsApiMock.Object);
+
+
+            var response = await updater.GetAndSaveTransactions();
+
+            Assert.False(response.Successful);
         }
     }
 }

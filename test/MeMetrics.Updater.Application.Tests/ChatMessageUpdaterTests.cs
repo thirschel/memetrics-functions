@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using AutoMapper;
-using Google.Apis.Gmail.v1.Data;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.GroupMe;
@@ -13,15 +11,20 @@ using Moq;
 using Newtonsoft.Json;
 using Serilog;
 using Xunit;
-using Message = Google.Apis.Gmail.v1.Data.Message;
 
 namespace MeMetrics.Updater.Application.Tests
 {
     public class ChatMessageUpdaterTests
     {
         public readonly IMapper _mapper;
+        public readonly Mock<IMeMetricsApi> _memetricsApiMock;
+        public readonly Mock<IGroupMeApi> _groupMeApiMock;
+        public readonly Mock<ILogger> _loggerMock;
         public ChatMessageUpdaterTests()
         {
+            _memetricsApiMock = new Mock<IMeMetricsApi>();
+            _groupMeApiMock = new Mock<IGroupMeApi>();
+            _loggerMock = new Mock<ILogger>();
             var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<ChatMessageProfile>(); });
             _mapper = new Mapper(configuration);
         }
@@ -29,9 +32,6 @@ namespace MeMetrics.Updater.Application.Tests
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldSaveChatMessagesCorrectly()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var groupMeApiMock = new Mock<IGroupMeApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 GroupMe_Access_Token = "Token",
@@ -41,7 +41,7 @@ namespace MeMetrics.Updater.Application.Tests
             var groupId = "1";
             var groupName = "Group";
 
-            groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
+            _groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
             {
                 Groups = new Group[]
                 {
@@ -56,7 +56,7 @@ namespace MeMetrics.Updater.Application.Tests
             var text = "Hello";
             var createdTime = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -94,19 +94,16 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
-            groupMeApiMock.Verify(x => x.Authenticate(config.Value.GroupMe_Access_Token), Times.Once);
-            memetricsApiMock.Verify(x => x.SaveChatMessage(It.Is<ChatMessage>(x => validate(x))), Times.Once);
+            _groupMeApiMock.Verify(x => x.Authenticate(config.Value.GroupMe_Access_Token), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveChatMessage(It.Is<ChatMessage>(x => validate(x))), Times.Once);
         }
 
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldReturn_IfNoMessagesFound()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var groupMeApiMock = new Mock<IGroupMeApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 GroupMe_Access_Token = "Token",
@@ -116,7 +113,7 @@ namespace MeMetrics.Updater.Application.Tests
             var groupId = "1";
             var groupName = "Group";
 
-            groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
+            _groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
             {
                 Groups = new Group[]
                 {
@@ -124,7 +121,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -134,18 +131,15 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
-            memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldOnlyChatMessage_IfChatMessageIsNotOlderThanTwoDays()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var groupMeApiMock = new Mock<IGroupMeApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 GroupMe_Access_Token = "Token",
@@ -155,7 +149,7 @@ namespace MeMetrics.Updater.Application.Tests
             var groupId = "1";
             var groupName = "Group";
 
-            groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
+            _groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
             {
                 Groups = new Group[]
                 {
@@ -163,7 +157,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -177,10 +171,10 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
-            memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
         }
 
         
@@ -188,9 +182,9 @@ namespace MeMetrics.Updater.Application.Tests
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldNotSaveChatMessage_IfMessageIsGroupMeEvent()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var groupMeApiMock = new Mock<IGroupMeApi>();
-            var loggerMock = new Mock<ILogger>();
+            var _memetricsApiMock = new Mock<IMeMetricsApi>();
+            var _groupMeApiMock = new Mock<IGroupMeApi>();
+            var _loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 GroupMe_Access_Token = "Token",
@@ -200,7 +194,7 @@ namespace MeMetrics.Updater.Application.Tests
             var groupId = "1";
             var groupName = "Group";
 
-            groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
+            _groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
             {
                 Groups = new Group[]
                 {
@@ -208,7 +202,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -224,18 +218,15 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
-            memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveChatMessages_ShouldUseLastMessageId_IfOutOfMessages()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var groupMeApiMock = new Mock<IGroupMeApi>();
-            var loggerMock = new Mock<ILogger>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 GroupMe_Access_Token = "Token",
@@ -245,7 +236,7 @@ namespace MeMetrics.Updater.Application.Tests
             var groupId = "1";
             var groupName = "Group";
 
-            groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
+            _groupMeApiMock.Setup(x => x.GetGroups()).ReturnsAsync(new GroupResponse()
             {
                 Groups = new Group[]
                 {
@@ -255,7 +246,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var firstMessageId = "1";
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, null)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -275,7 +266,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            groupMeApiMock.Setup(x => x.GetMessages(groupId, firstMessageId)).ReturnsAsync(new MessageResponse()
+            _groupMeApiMock.Setup(x => x.GetMessages(groupId, firstMessageId)).ReturnsAsync(new MessageResponse()
             {
                 Response = new Response()
                 {
@@ -295,10 +286,29 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new ChatMessageUpdater(loggerMock.Object, config, groupMeApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveChatMessages();
 
-            memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Exactly(2));
+            _memetricsApiMock.Verify(x => x.SaveChatMessage(It.IsAny<ChatMessage>()), Times.Exactly(2));
+        }
+
+
+        [Fact]
+        public async Task GetAndSaveChatMessages_ShouldReturnSuccessfully_WhenCatchingException()
+        {
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                GroupMe_Access_Token = "Token",
+                Gmail_Call_Log_Label = "CallLogLabel",
+            });
+
+            _groupMeApiMock.Setup(x => x.GetGroups()).ThrowsAsync(new Exception());
+
+            var updater = new ChatMessageUpdater(_loggerMock.Object, config, _groupMeApiMock.Object, _memetricsApiMock.Object, _mapper);
+
+            var response = await updater.GetAndSaveChatMessages();
+
+            Assert.False(response.Successful);
         }
     }
 }

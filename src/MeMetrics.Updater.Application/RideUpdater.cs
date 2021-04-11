@@ -36,11 +36,20 @@ namespace MeMetrics.Updater.Application
             _mapper = mapper;
         }
 
-        public async Task GetAndSaveUberRides()
+        public async Task<UpdaterResponse> GetAndSaveUberRides()
         {
-            await _uberRidersApi.Authenticate(_configuration.Value.Uber_Cookie, _configuration.Value.Uber_User_Id);
-            var transactions = await ProcessUberRides(0, 0);
-            _logger.Information($"{transactions} uber transactions successfully saved");
+            try {
+                _logger.Information("Starting Uber ride updater");
+                await _uberRidersApi.Authenticate(_configuration.Value.Uber_Cookie, _configuration.Value.Uber_User_Id);
+                var transactions = await ProcessUberRides(0, 0);
+                _logger.Information($"Finished Uber ride updater. {transactions} uber transactions successfully saved");
+                return new UpdaterResponse() { Successful = true };
+            }
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save uber rides");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
 
         public async Task<int> ProcessUberRides(int offset, int transactionCount)
@@ -88,11 +97,20 @@ namespace MeMetrics.Updater.Application
             return transactionCount;
         }
 
-        public async Task GetAndSaveLyftRides()
+        public async Task<UpdaterResponse> GetAndSaveLyftRides()
         {
-            await _lyftApi.Authenticate(_configuration.Value.Lyft_Cookie);
-            var transactions = await ProcessLyftRides(0, 0);
-            _logger.Information($"{transactions} lyft transactions successfully saved");
+            try {
+                _logger.Information("Starting Lyft ride updater");
+                await _lyftApi.Authenticate(_configuration.Value.Lyft_Cookie);
+                var transactions = await ProcessLyftRides(0, 0);
+                _logger.Information($"Finished Lyft ride updater. {transactions} Lyft transactions successfully saved");
+                return new UpdaterResponse() { Successful = true };
+            }
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save Lyft rides");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
 
         public async Task<int> ProcessLyftRides(int offset, int transactionCount)

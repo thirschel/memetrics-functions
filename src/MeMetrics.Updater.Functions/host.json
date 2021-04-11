@@ -5,5 +5,10 @@
     "samplingSettings": {
       "isEnabled": true
     }
+  },
+  "logging": {
+    "logLevel": {
+      "default": "Warning"
+    }
   }
 }

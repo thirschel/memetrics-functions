@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Interfaces;
+using MeMetrics.Updater.Application.Objects;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Logging;
 
@@ -47,16 +50,23 @@ namespace MeMetrics.Updater.Functions
             // https://docs.microsoft.com/en-us/azure/azure-functions/functions-bindings-error-pages#use-structured-error-handling
             try
             {
-                await _messageUpdater.GetAndSaveMessages();
-                await _callUpdater.GetAndSaveCalls();
-                await _chatMessageUpdater.GetAndSaveChatMessages();
-                await _recruitmentMessageUpdater.GetAndSaveEmailMessages();
-                await _recruitmentMessageUpdater.GetAndSaveLinkedInMessages();
-                await _transactionUpdater.GetAndSaveTransactions();
-                await _rideUpdater.GetAndSaveUberRides();
-                await _rideUpdater.GetAndSaveLyftRides();
+                var responses = new List<UpdaterResponse>
+                {
+                    await _messageUpdater.GetAndSaveMessages(),
+                    await _callUpdater.GetAndSaveCalls(),
+                    await _chatMessageUpdater.GetAndSaveChatMessages(),
+                    await _recruitmentMessageUpdater.GetAndSaveEmailMessages(),
+                    await _recruitmentMessageUpdater.GetAndSaveLinkedInMessages(),
+                    await _transactionUpdater.GetAndSaveTransactions(),
+                    await _rideUpdater.GetAndSaveUberRides(),
+                    await _rideUpdater.GetAndSaveLyftRides()
+                };
 
                 await _cacheUpdater.CacheMeMetrics();
+                if (responses.Exists(r => !r.Successful))
+                {
+                    throw new Exception($"{responses.Count(r => !r.Successful)} update(s) failed.");
+                }
             }
             catch (Exception e)
             {

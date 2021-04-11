@@ -38,53 +38,63 @@ namespace MeMetrics.Updater.Application
             _mapper = mapper;
         }
 
-        public async Task GetAndSaveMessages()
+        public async Task<UpdaterResponse> GetAndSaveMessages()
         {
-            await _gmailApi.Authenticate(_configuration.Value.Gmail_History_Refresh_Token);
-            var transactionCount = 0;
+            try {
+                _logger.Information("Starting message updater");
+                await _gmailApi.Authenticate(_configuration.Value.Gmail_History_Refresh_Token);
+                var transactionCount = 0;
 
-            var labels = await _gmailApi.GetLabels();
-            var smsLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Sms_Label)?.Id;
+                var labels = await _gmailApi.GetLabels();
+                var smsLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Sms_Label)?.Id;
 
-            var response = await _gmailApi.GetEmails(smsLabel);
-            var messages = new List<Google.Apis.Gmail.v1.Data.Message>();
-            messages.AddRange(response.Messages);
+                var response = await _gmailApi.GetEmails(smsLabel);
+                var messages = new List<Google.Apis.Gmail.v1.Data.Message>();
+                messages.AddRange(response.Messages);
 
-            var hasFoundAllTodaysCalls = false;
+                var hasFoundAllTodaysCalls = false;
 
-            while (!hasFoundAllTodaysCalls && messages.Any())
-            {
-                for (var i = 0; i < messages.Count; i++)
+                while (!hasFoundAllTodaysCalls && messages.Any())
                 {
-                    var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                    if (hasFoundAllTodaysCalls)
+                    for (var i = 0; i < messages.Count; i++)
                     {
-                        return;
-                    }
-                    var phoneNumber = Utility.FormatStringToPhoneNumber(email.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value);
-                    if (phoneNumber.Length < 11 || Constants.PhoneNumberBlacklist.Contains(phoneNumber))
-                    {
-                        continue;
+                        var email = await _gmailApi.GetEmail(messages[i].Id);
+                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+                        if (hasFoundAllTodaysCalls)
+                        {
+                            _logger.Information($"Finished message updater. {transactionCount} messages successfully saved");
+                            return new UpdaterResponse()  { Successful = true };
+                        }
+                        var phoneNumber = Utility.FormatStringToPhoneNumber(email.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value);
+                        if (phoneNumber.Length < 11 || Constants.PhoneNumberBlacklist.Contains(phoneNumber))
+                        {
+                            continue;
+                        }
+
+                        var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
+                        message.Attachments = await GetAttachments(messages[i].Id, email);
+               
+                        await _memetricsApi.SaveMessage(message);
+                        transactionCount++;
                     }
 
-                    var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
-                    message.Attachments = await GetAttachments(messages[i].Id, email);
-           
-                    await _memetricsApi.SaveMessage(message);
-                    transactionCount++;
+                    messages.Clear();
+
+                    if (!string.IsNullOrEmpty(response.NextPageToken))
+                    {
+                        response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
+                        messages.AddRange(response.Messages);
+                    }
                 }
 
-                messages.Clear();
-
-                if (!string.IsNullOrEmpty(response.NextPageToken))
-                {
-                    response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
-                    messages.AddRange(response.Messages);
-                }
+                _logger.Information($"Finished message updater. {transactionCount} messages successfully saved");
+                return new UpdaterResponse() { Successful = true };
             }
-
-            _logger.Information($"{transactionCount} messages successfully saved");
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save messages");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
 
         internal async Task<List<Attachment>> GetAttachments(string messageId, Google.Apis.Gmail.v1.Data.Message email)

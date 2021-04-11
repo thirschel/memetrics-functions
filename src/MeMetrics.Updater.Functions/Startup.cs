@@ -21,6 +21,8 @@ using Microsoft.Azure.WebJobs.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Serilog.Configuration;
+using Serilog.Events;
 
 [assembly: WebJobsStartup(typeof(Startup))]
 namespace MeMetrics.Updater.Functions
@@ -51,6 +53,7 @@ namespace MeMetrics.Updater.Functions
                 .WriteTo.Console()
                 .Enrich.FromLogContext()
                 .WriteTo.ApplicationInsights(config, TelemetryConverter.Traces)
+                .MinimumLevel.Override("System.Net.Http.HttpClient", LogEventLevel.Warning)
                 .CreateLogger();
             builder.Services.AddLogging(lb => lb.AddSerilog(logger));
             builder.Services.AddSingleton<ILogger>(c => logger);

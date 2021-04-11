@@ -19,20 +19,23 @@ namespace MeMetrics.Updater.Application.Tests
     public class RideUpdaterTests
     {
         public static Mock<ILogger> _loggerMock;
+        public static Mock<IMeMetricsApi> _memetricsApiMock;
+        public static Mock<ILyftApi> _lyftApiMock;
+        public static Mock<IUberRidersApi> _uberRidersApiMock;
         public static IMapper _mapper;
         public RideUpdaterTests()
         {
             var configuration = new MapperConfiguration(cfg => {  cfg.AddProfile<RideProfile>(); });
             _loggerMock = new Mock<ILogger>();
             _mapper = new Mapper(configuration);
+            _memetricsApiMock = new Mock<IMeMetricsApi>();
+            _lyftApiMock = new Mock<ILyftApi>();
+            _uberRidersApiMock = new Mock<IUberRidersApi>();
         }
 
         [Fact]
         public async Task GetAndSaveUberRides_ShouldSaveRidesSuccessfully()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Uber_Cookie = "cookie",
@@ -40,7 +43,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
             var tripId = Guid.NewGuid();
-            uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
+            _uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
             {
                 Data = new TripsResponseData()
                 {
@@ -59,7 +62,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
+            _uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
             {
                 Data = new TripsDetail()
                 {
@@ -76,19 +79,16 @@ namespace MeMetrics.Updater.Application.Tests
 
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveUberRides();
 
-            uberRidersApiMock.Verify(x => x.Authenticate(config.Value.Uber_Cookie, config.Value.Uber_User_Id), Times.Once);
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
+            _uberRidersApiMock.Verify(x => x.Authenticate(config.Value.Uber_Cookie, config.Value.Uber_User_Id), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
         }
 
         [Fact]
         public async Task GetAndSaveUberRides_ShouldOnlySaveRide_IfRideIsNotOlderThanTwoDays()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Uber_Cookie = "cookie",
@@ -96,7 +96,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
             var tripId = Guid.NewGuid();
-            uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
+            _uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
             {
                 Data = new TripsResponseData()
                 {
@@ -121,7 +121,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
+            _uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
             {
                 Data = new TripsDetail()
                 {
@@ -138,10 +138,10 @@ namespace MeMetrics.Updater.Application.Tests
 
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveUberRides();
 
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
         }
 
         [Theory]
@@ -149,9 +149,6 @@ namespace MeMetrics.Updater.Application.Tests
         [InlineData("NOT_COMPLETED")]
         public async Task GetAndSaveUberRides_ShouldNotSaveRides_WithBadStatusCodes(string statusCode)
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Uber_Cookie = "cookie",
@@ -159,7 +156,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
             var tripId = Guid.NewGuid();
-            uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
+            _uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
             {
                 Data = new TripsResponseData()
                 {
@@ -178,7 +175,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
+            _uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
             {
                 Data = new TripsDetail()
                 {
@@ -195,18 +192,15 @@ namespace MeMetrics.Updater.Application.Tests
 
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveUberRides();
 
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveUberRides_ShouldNotSaveRides_RelatedToUberEats()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Uber_Cookie = "cookie",
@@ -214,7 +208,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
             var tripId = Guid.NewGuid();
-            uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
+            _uberRidersApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new TripsResponse()
             {
                 Data = new TripsResponseData()
                 {
@@ -233,7 +227,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
+            _uberRidersApiMock.Setup(x => x.GetTripDetails(It.IsAny<string>())).ReturnsAsync(new TripsDetailResponse()
             {
                 Data = new TripsDetail()
                 {
@@ -250,25 +244,22 @@ namespace MeMetrics.Updater.Application.Tests
 
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveUberRides();
 
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveLyftRides_ShouldSaveRidesSuccessfully()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
                 Gmail_Call_Log_Label = "CallLogLabel",
             });
 
-            lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
+            _lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
             {
                 Data = new Trip[]
                 {
@@ -279,25 +270,22 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveLyftRides();
 
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
         }
 
         [Fact]
         public async Task GetAndSaveLyftRides_ShouldOnlySaveRide_IfRideIsNotOlderThanTwoDays()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var lyftApiMock = new Mock<ILyftApi>();
-            var uberRidersApiMock = new Mock<IUberRidersApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
                 Gmail_Call_Log_Label = "CallLogLabel",
             });
 
-            lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
+            _lyftApiMock.Setup(x => x.GetTrips(0)).ReturnsAsync(new PassengerTrips()
             {
                 Data = new Trip[]
                 {
@@ -312,10 +300,44 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new RideUpdater(_loggerMock.Object, config, lyftApiMock.Object, uberRidersApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveLyftRides();
 
-            memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveRide(It.IsAny<Ride>()), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetAndSaveLyftRides_ShouldReturnSuccessfully_WhenCatchingException()
+        {
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Gmail_History_Refresh_Token = "HistoryToken",
+                Gmail_Call_Log_Label = "CallLogLabel",
+            });
+
+            _lyftApiMock.Setup(x => x.GetTrips(0)).ThrowsAsync(new Exception());
+
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
+            var response  = await updater.GetAndSaveLyftRides();
+
+            Assert.False(response.Successful);
+        }
+
+        [Fact]
+        public async Task GetAndSaveUberRides_ShouldReturnSuccessfully_WhenCatchingException()
+        {
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Uber_Cookie = "cookie",
+                Uber_User_Id = "1",
+            });
+
+            _uberRidersApiMock.Setup(x => x.GetTrips(0)).ThrowsAsync(new Exception());
+
+            var updater = new RideUpdater(_loggerMock.Object, config, _lyftApiMock.Object, _uberRidersApiMock.Object, _memetricsApiMock.Object, _mapper);
+            var response = await updater.GetAndSaveUberRides();
+
+            Assert.False(response.Successful);
         }
     }
 }

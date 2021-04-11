@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using AutoMapper;
-using MeMetrics.Updater.Application.Helpers;
 using MeMetrics.Updater.Application.Interfaces;
 using MeMetrics.Updater.Application.Objects;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
@@ -37,51 +36,68 @@ namespace MeMetrics.Updater.Application
             _mapper = mapper;
         }
 
-        public async Task GetAndSaveCalls()
+        public async Task<UpdaterResponse> GetAndSaveCalls()
         {
-            await _gmailApi.Authenticate(_configuration.Value.Gmail_History_Refresh_Token);
-            var transactionCount = 0;
-            var labels = await _gmailApi.GetLabels();
-            var callLabelId = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Call_Log_Label)?.Id;
-
-            var response = await _gmailApi.GetEmails(callLabelId);
-            var messages = new List<Message>();
-            messages.AddRange(response.Messages);
-
-            var hasFoundAllTodaysCalls = false;
-            var snippetRegex = new Regex(@"(\d+)s \(\d+:\d+:\d+\) (\d+) \((incoming|outgoing) call\)",RegexOptions.IgnoreCase);
-
-            while (!hasFoundAllTodaysCalls && messages.Any())
+            try
             {
-                for (var i = 0; i < messages.Count; i++)
+                _logger.Information("Starting call updater");
+                await _gmailApi.Authenticate(_configuration.Value.Gmail_History_Refresh_Token);
+                var transactionCount = 0;
+                var labels = await _gmailApi.GetLabels();
+                var callLabelId = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Call_Log_Label)?.Id;
+
+                var response = await _gmailApi.GetEmails(callLabelId);
+                var messages = new List<Message>();
+                messages.AddRange(response.Messages);
+
+                var hasFoundAllTodaysCalls = false;
+                var snippetRegex = new Regex(@"(\d+)s \(\d+:\d+:\d+\) (\d+) \((incoming|outgoing) call\)",
+                    RegexOptions.IgnoreCase);
+
+                while (!hasFoundAllTodaysCalls && messages.Any())
                 {
-                    if (hasFoundAllTodaysCalls) return;
-                    var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-
-                    var emailMatch = snippetRegex.Match(email.Snippet);
-
-                    // Cases that don't match are missed or rejected calls or emails that are not formatted correctly
-                    if (!emailMatch.Success || hasFoundAllTodaysCalls)
+                    for (var i = 0; i < messages.Count; i++)
                     {
-                        continue;
+                        if (hasFoundAllTodaysCalls)
+                        {
+                            _logger.Information($"Finished call updater. {transactionCount} call(s) successfully saved");
+                            return new UpdaterResponse() { Successful = true };
+                        } 
+                        var email = await _gmailApi.GetEmail(messages[i].Id);
+                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long) email.InternalDate) <
+                                                 DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+
+                        var emailMatch = snippetRegex.Match(email.Snippet);
+
+                        // Cases that don't match are missed or rejected calls or emails that are not formatted correctly
+                        if (!emailMatch.Success || hasFoundAllTodaysCalls)
+                        {
+                            continue;
+                        }
+
+                        var call = _mapper.Map<Call>(email);
+
+                        await _memetricsApi.SaveCall(call);
+                        transactionCount++;
                     }
 
-                    var call = _mapper.Map<Call>(email);
+                    messages.Clear();
 
-                    await _memetricsApi.SaveCall(call);
-                    transactionCount++;
+                    if (!string.IsNullOrEmpty(response.NextPageToken))
+                    {
+                        response = await _gmailApi.GetEmails(callLabelId, response.NextPageToken);
+                        messages.AddRange(response.Messages);
+                    }
                 }
-                messages.Clear();
 
-                if (!string.IsNullOrEmpty(response.NextPageToken))
-                {
-                    response = await _gmailApi.GetEmails(callLabelId, response.NextPageToken);
-                    messages.AddRange(response.Messages);
-                }
+                _logger.Information($"Finished call updater. {transactionCount} call(s) successfully saved");
+                return new UpdaterResponse() { Successful = true };
             }
-
-            _logger.Information($"{transactionCount} calls successfully saved");
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save calls");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
     }
 }

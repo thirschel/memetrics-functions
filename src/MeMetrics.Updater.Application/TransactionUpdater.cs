@@ -37,28 +37,37 @@ namespace MeMetrics.Updater.Application
             _mapper = mapper;
         }
 
-        public async Task GetAndSaveTransactions()
+        public async Task<UpdaterResponse> GetAndSaveTransactions()
         {
-            int transactionCount = 0;
-            await _personalCapitalApi.Authenticate(_configuration.Value.Personal_Capital_Username, _configuration.Value.Personal_Capital_Password, _configuration.Value.Personal_Capital_PMData);
+            try {
+                _logger.Information("Starting transaction updater");
+                int transactionCount = 0;
+                await _personalCapitalApi.Authenticate(_configuration.Value.Personal_Capital_Username, _configuration.Value.Personal_Capital_Password, _configuration.Value.Personal_Capital_PMData);
 
-            var startDate = DateTime.Now.AddDays(-_daysToQuery);
-            var endDate = DateTime.Now;
-            var startTime = $"{startDate.Year}-{Utility.AddPadding(startDate.Month)}-{Utility.AddPadding(startDate.Day)}";
-            var endTime = $"{endDate.Year}-{Utility.AddPadding(endDate.Month)}-{Utility.AddPadding(endDate.Day)}";
-            var transactions = await _personalCapitalApi.GetUserTransactions(startTime, endTime);
-            if (transactions.SpData?.Transactions != null)
-            {
-                foreach (var transactionData in transactions.SpData?.Transactions)
+                var startDate = DateTime.Now.AddDays(-_daysToQuery);
+                var endDate = DateTime.Now;
+                var startTime = $"{startDate.Year}-{Utility.AddPadding(startDate.Month)}-{Utility.AddPadding(startDate.Day)}";
+                var endTime = $"{endDate.Year}-{Utility.AddPadding(endDate.Month)}-{Utility.AddPadding(endDate.Day)}";
+                var transactions = await _personalCapitalApi.GetUserTransactions(startTime, endTime);
+                if (transactions.SpData?.Transactions != null)
                 {
-                    var transaction = _mapper.Map<Transaction>(transactionData);
+                    foreach (var transactionData in transactions.SpData?.Transactions)
+                    {
+                        var transaction = _mapper.Map<Transaction>(transactionData);
 
-                    await _memetricsApi.SaveTransaction(transaction);
-                    transactionCount++;
+                        await _memetricsApi.SaveTransaction(transaction);
+                        transactionCount++;
+                    }
                 }
-            }
 
-            _logger.Information($"{transactionCount} transactions successfully saved.");
+                _logger.Information($"Finished transaction updater. {transactionCount} transactions successfully saved.");
+                return new UpdaterResponse() { Successful = true };
+            }
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save transactions");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
     }
 }

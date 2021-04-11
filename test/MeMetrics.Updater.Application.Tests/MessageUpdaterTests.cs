@@ -20,19 +20,21 @@ namespace MeMetrics.Updater.Application.Tests
     public class MessageUpdaterTests
     {
         public static Mock<ILogger> _loggerMock;
+        public static Mock<IMeMetricsApi> _memetricsApiMock;
+        public static Mock<IGmailApi> _gmailApiMock;
         public static IMapper _mapper;
         public MessageUpdaterTests()
         {
             var configuration = new MapperConfiguration(cfg => { cfg.AddProfile<MessageProfile>(); });
-            _loggerMock = new Mock<ILogger>();
             _mapper = new Mapper(configuration);
+            _memetricsApiMock = new Mock<IMeMetricsApi>();
+            _gmailApiMock = new Mock<IGmailApi>();
+            _loggerMock = new Mock<ILogger>();
         }
 
         [Fact]
         public async Task GetAndSaveMessages_ShouldSaveMessagesSuccessfully()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -42,7 +44,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var messageId = "1";
 
-            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            _gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
             {
                 Labels = new List<Label>()
                 {
@@ -50,7 +52,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -60,7 +62,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var occurredDate = "2020-1-1";
 
-            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            _gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
                 Id = messageId,
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
@@ -105,17 +107,15 @@ namespace MeMetrics.Updater.Application.Tests
                 return true;
             };
 
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            memetricsApiMock.Verify(x => x.SaveMessage(It.Is<Objects.MeMetrics.Message>(z => validate(z))), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveMessage(It.Is<Objects.MeMetrics.Message>(z => validate(z))), Times.Once);
         }
 
         [Fact]
         public async Task GetAndSaveMessages_ShouldOnlySaveMessage_IfMessageIsNotOlderThanTwoDays()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -125,7 +125,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var messageId = "1";
 
-            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            _gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
             {
                 Labels = new List<Label>()
                 {
@@ -133,7 +133,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -142,23 +142,21 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            _gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
                 InternalDate = DateTimeOffset.Now.AddDays(-3).ToUnixTimeMilliseconds(),
             });
 
 
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveMessages_ShouldNotSaveMessage_WhenPhoneNumberIsLessThan11Numbers()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -168,7 +166,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var messageId = "1";
 
-            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            _gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
             {
                 Labels = new List<Label>()
                 {
@@ -176,7 +174,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -185,7 +183,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            _gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
                 Id = messageId,
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
@@ -214,17 +212,15 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveMessages_ShouldNotSaveMessage_WhenPhoneNumberIsBlacklisted()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -234,7 +230,7 @@ namespace MeMetrics.Updater.Application.Tests
 
             var messageId = "1";
 
-            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            _gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
             {
                 Labels = new List<Label>()
                 {
@@ -242,7 +238,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -251,7 +247,7 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
+            _gmailApiMock.Setup(x => x.GetEmail(messageId)).ReturnsAsync(new Message()
             {
                 Id = messageId,
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
@@ -280,17 +276,15 @@ namespace MeMetrics.Updater.Application.Tests
             });
 
 
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
         }
 
         [Fact]
         public async Task GetAndSaveMessages_ShouldUseNextPageToken_IfOutOfMessages()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -302,7 +296,7 @@ namespace MeMetrics.Updater.Application.Tests
             var secondMessageId = "2";
             var nextPageToken = "token";
 
-            gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
+            _gmailApiMock.Setup(x => x.GetLabels()).ReturnsAsync(new ListLabelsResponse()
             {
                 Labels = new List<Label>()
                 {
@@ -310,7 +304,7 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, null)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -319,7 +313,7 @@ namespace MeMetrics.Updater.Application.Tests
                 NextPageToken = nextPageToken
             });
 
-            gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken)).ReturnsAsync(new ListMessagesResponse()
+            _gmailApiMock.Setup(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken)).ReturnsAsync(new ListMessagesResponse()
             {
                 Messages = new List<Message>()
                 {
@@ -327,7 +321,7 @@ namespace MeMetrics.Updater.Application.Tests
                 },
             });
 
-            gmailApiMock.Setup(x => x.GetEmail(It.IsAny<string>())).ReturnsAsync(new Message()
+            _gmailApiMock.Setup(x => x.GetEmail(It.IsAny<string>())).ReturnsAsync(new Message()
             {
                 InternalDate = DateTimeOffset.Now.ToUnixTimeMilliseconds(),
                 Payload = new MessagePart()
@@ -354,18 +348,16 @@ namespace MeMetrics.Updater.Application.Tests
                 }
             });
 
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken));
-            memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Exactly(2));
+            _gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken));
+            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Exactly(2));
         }
 
         [Fact]
         public async Task GetAttachments_ShouldGetAttachmentsCorrectly()
         {
-            var memetricsApiMock = new Mock<IMeMetricsApi>();
-            var gmailApiMock = new Mock<IGmailApi>();
             var config = Options.Create(new EnvironmentConfiguration()
             {
                 Gmail_History_Refresh_Token = "HistoryToken",
@@ -394,15 +386,34 @@ namespace MeMetrics.Updater.Application.Tests
                     }
                 }
             };
-            gmailApiMock.Setup(x => x.GetAttachment(messageId, attachmentId)).ReturnsAsync(base64Image);
-            var updater = new MessageUpdater(_loggerMock.Object, config, gmailApiMock.Object, memetricsApiMock.Object, _mapper);
+            _gmailApiMock.Setup(x => x.GetAttachment(messageId, attachmentId)).ReturnsAsync(base64Image);
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             var attachments = await updater.GetAttachments(messageId, email);
 
-            gmailApiMock.Verify(x => x.GetAttachment(messageId, attachmentId), Times.Once);
+            _gmailApiMock.Verify(x => x.GetAttachment(messageId, attachmentId), Times.Once);
             Assert.Single(attachments);
             Assert.Equal(attachmentId, attachments.First().AttachmentId);
             Assert.Equal(base64Image, attachments.First().Base64Data);
             Assert.Equal("jpg", attachments.First().FileName);
+        }
+
+        [Fact]
+        public async Task GetAndSaveMessages_ShouldReturnSuccessfully_WhenCatchingException()
+        {
+            var config = Options.Create(new EnvironmentConfiguration()
+            {
+                Gmail_History_Refresh_Token = "HistoryToken",
+                Gmail_Sms_Label = "SmsLabel",
+                Gmail_Sms_Email_Address = "myEmail@address.com"
+            });
+
+            _gmailApiMock.Setup(x => x.GetLabels()).ThrowsAsync(new Exception());
+
+            var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
+
+            var response = await updater.GetAndSaveMessages();
+
+            Assert.False(response.Successful);
         }
     }
 }

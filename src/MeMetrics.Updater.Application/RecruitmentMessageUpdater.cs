@@ -41,30 +41,39 @@ namespace MeMetrics.Updater.Application
             _mapper = mapper;
         }
 
-        public async Task GetAndSaveLinkedInMessages()
+        public async Task<UpdaterResponse> GetAndSaveLinkedInMessages()
         {
-            var requiresAdditionalAuthentication = await _linkedInApi.Authenticate(_configuration.Value.LinkedIn_Username, _configuration.Value.LinkedIn_Password);
-            if (requiresAdditionalAuthentication)
-            {
-                // Wait for the email to be sent and received
-                await Task.Delay(15000);
+            try {
+                _logger.Information("Starting LinkedIn message updater");
+                var requiresAdditionalAuthentication = await _linkedInApi.Authenticate(_configuration.Value.LinkedIn_Username, _configuration.Value.LinkedIn_Password);
+                if (requiresAdditionalAuthentication)
+                {
+                    // Wait for the email to be sent and received
+                    await Task.Delay(15000);
 
-                await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
-                var labels = await _gmailApi.GetLabels();
-                var labelId = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_LinkedIn_Label)?.Id;
-                var messages = await _gmailApi.GetEmails(labelId);
-                var message = await _gmailApi.GetEmail(messages.Messages[0].Id);
-                var body = Utility.Decode(message.Payload.Parts[0].Body.Data);
-                var regex = new Regex("Please use this verification code to complete your sign in: (\\d+)");
-                var code = regex.Match(body).Groups[1].ToString();
+                    await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
+                    var labels = await _gmailApi.GetLabels();
+                    var labelId = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_LinkedIn_Label)?.Id;
+                    var messages = await _gmailApi.GetEmails(labelId);
+                    var message = await _gmailApi.GetEmail(messages.Messages[0].Id);
+                    var body = Utility.Decode(message.Payload.Parts[0].Body.Data);
+                    var regex = new Regex("Please use this verification code to complete your sign in: (\\d+)");
+                    var code = regex.Match(body).Groups[1].ToString();
 
-                await _linkedInApi.SubmitPin(code);
+                    await _linkedInApi.SubmitPin(code);
+                }
+                var transactionCount = await GetAndSaveRecruitmentMessages(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), 0);
+                _logger.Information($"Finished LinkedIn message updater. {transactionCount} messages successfully saved");
+                return new UpdaterResponse() { Successful = true };
             }
-            var transactionCount = await GetAndSaveRecruitmentMessages(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), 0);
-            _logger.Information($"{transactionCount} recruiter messages successfully saved");
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save LinkedIn messages");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
 
-        public async Task<int> GetAndSaveRecruitmentMessages(long createdBeforeTime, int transactionCount)
+        internal async Task<int> GetAndSaveRecruitmentMessages(long createdBeforeTime, int transactionCount)
         {
             var hasFoundAllTodaysCalls = false;
             var messages = await _linkedInApi.GetConversations(createdBeforeTime);
@@ -74,7 +83,7 @@ namespace MeMetrics.Updater.Application
                 {
                     return transactionCount;
                 }
-                var conversationRegex = new Regex("urn:li:fs_conversation:(\\w?\\d+_?\\d*)");
+                var conversationRegex = new Regex("urn:li:fs_conversation:(.*)");
                 var conversationId = conversationRegex.Match(messages.Elements[i].EntityUrn).Groups[1].ToString();
                 var events = await _linkedInApi.GetConversationEvents(conversationId);
 
@@ -110,42 +119,51 @@ namespace MeMetrics.Updater.Application
             return transactionCount;
         }
 
-        public async Task GetAndSaveEmailMessages()
+        public async Task<UpdaterResponse> GetAndSaveEmailMessages()
         {
-            var transactionCount = 0;
-            await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
-            var labels = await _gmailApi.GetLabels();
-            var recruiterLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Recruiter_Label)?.Id;
+            try {
+                _logger.Information("Starting recruiter message updater");
+                var transactionCount = 0;
+                await _gmailApi.Authenticate(_configuration.Value.Gmail_Main_Refresh_Token);
+                var labels = await _gmailApi.GetLabels();
+                var recruiterLabel = labels.Labels.FirstOrDefault(l => l.Name == _configuration.Value.Gmail_Recruiter_Label)?.Id;
 
-            var response = await _gmailApi.GetEmails(recruiterLabel);
-            var messages = new List<Google.Apis.Gmail.v1.Data.Message>();
-            messages.AddRange(response.Messages);
+                var response = await _gmailApi.GetEmails(recruiterLabel);
+                var messages = new List<Google.Apis.Gmail.v1.Data.Message>();
+                messages.AddRange(response.Messages);
 
-            var hasFoundAllTodaysCalls = false;
-            while (!hasFoundAllTodaysCalls && messages.Any())
-            {
-                for (var i = 0; i < messages.Count; i++)
+                var hasFoundAllTodaysCalls = false;
+                while (!hasFoundAllTodaysCalls && messages.Any())
                 {
-                    var email = await _gmailApi.GetEmail(messages[i].Id);
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                    if (hasFoundAllTodaysCalls) return;
-                    
-                    var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
+                    for (var i = 0; i < messages.Count; i++)
+                    {
+                        var email = await _gmailApi.GetEmail(messages[i].Id);
+                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+                        if (hasFoundAllTodaysCalls) return new UpdaterResponse() { Successful = true };
 
-                    await _memetricsApi.SaveRecruitmentMessage(message);
-                    transactionCount++;
+                        var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
+
+                        await _memetricsApi.SaveRecruitmentMessage(message);
+                        transactionCount++;
+                    }
+
+                    messages.Clear();
+
+                    if (!string.IsNullOrEmpty(response.NextPageToken))
+                    {
+                        response = await _gmailApi.GetEmails(recruiterLabel, response.NextPageToken);
+                        messages.AddRange(response.Messages);
+                    }
                 }
 
-                messages.Clear();
-
-                if (!string.IsNullOrEmpty(response.NextPageToken))
-                {
-                    response = await _gmailApi.GetEmails(recruiterLabel, response.NextPageToken);
-                    messages.AddRange(response.Messages);
-                }
+                _logger.Information($"Finished recruiter message updater. {transactionCount} messages successfully saved");
+                return new UpdaterResponse() { Successful = true };
             }
-
-            _logger.Information($"{transactionCount} messages successfully saved");
+            catch (Exception e)
+            {
+                _logger.Error(e, "Failed to get and save email recruitment messages");
+                return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
+            }
         }
     }
 }

@@ -73,7 +73,6 @@ namespace MeMetrics.Updater.Infrastructure.MeMetrics
 
         public async Task PostRequest(string uri, Object body)
         {
-            _logger.Information($"Making request to {uri}");
             var request = new HttpRequestMessage(HttpMethod.Post, uri)
             {
                 Content = new StringContent(JsonConvert.SerializeObject(body), Encoding.UTF8, "application/json")
