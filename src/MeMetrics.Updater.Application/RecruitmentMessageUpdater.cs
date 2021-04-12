@@ -103,6 +103,7 @@ namespace MeMetrics.Updater.Application
                     }
 
                     var recruitmentMessage = _mapper.Map<RecruitmentMessage>(element);
+                    recruitmentMessage.IsIncoming = element.From.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn;
                     recruitmentMessage = _mapper.Map(recruiter.MessagingMember.MiniProfile, recruitmentMessage);
                     
                     await _memetricsApi.SaveRecruitmentMessage(recruitmentMessage);
@@ -139,7 +140,11 @@ namespace MeMetrics.Updater.Application
                     {
                         var email = await _gmailApi.GetEmail(messages[i].Id);
                         hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                        if (hasFoundAllTodaysCalls) return new UpdaterResponse() { Successful = true };
+                        if (hasFoundAllTodaysCalls)
+                        {
+                            _logger.Information($"Finished recruiter message updater. {transactionCount} messages successfully saved");
+                            return new UpdaterResponse() { Successful = true };
+                        }
 
                         var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
 

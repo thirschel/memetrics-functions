@@ -25,8 +25,23 @@ namespace MeMetrics.Updater.Application.Profiles
                 }))
                 .ForMember(dest => dest.RecruitmentMessageId, source => source.MapFrom((src, dest, destMember, context) =>
                 {
-                    var messageIdRegex = new Regex("urn:li:fs_event:\\(\\d+,(\\w+|\\d+|_)");
-                    return messageIdRegex.Match(src.EntityUrn).Groups[1].ToString();
+                    /*
+                     * Linkedin changed their event ids to be base64 encoded. The eventId now comes as 2 strings that comma-separated.
+                     * These strings seem to have a number (2 seems to be constant, which is maybe the version number?) and a dash (-) before the base64 encoded string
+                     * Once decoded the first string contains a guid with a number appended by an underscore (_) at the end. This is the threadId
+                     * The second string contains the createdAt epoch time followed by the letter c followed by a 9 digit number that is hyphenated (-) after 5 digits.
+                     * All of which is suffixed by an ampersand and the threadId again. The createdAt time plus the 9 digit number is the messageId.
+                     */
+                    var legacyLinkedInEventRegex = new Regex("urn:li:fs_event:\\(\\d+,(\\w+|\\d+|_)");
+                    var linkedInEventRegex = new Regex("urn:li:fs_event:\\(\\d+-.*,\\d+-(.*)\\)");
+                    var eventIdMatches = linkedInEventRegex.Match(src.EntityUrn);
+                    if (legacyLinkedInEventRegex.IsMatch(src.EntityUrn))
+                    {
+                        return legacyLinkedInEventRegex.Match(src.EntityUrn).Groups[1].ToString();
+                    }
+                    var messageIdRegex = new Regex("(\\d+\\w.*)&");
+                    var decodedEventId = Utility.Decode(eventIdMatches.Groups[1].Value);
+                    return messageIdRegex.Match(decodedEventId).Groups[1].ToString();
                 }));
 
             CreateMap<Objects.LinkedIn.MiniProfile, Objects.MeMetrics.RecruitmentMessage>()
