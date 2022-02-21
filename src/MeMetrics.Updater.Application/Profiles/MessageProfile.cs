@@ -34,9 +34,9 @@ namespace MeMetrics.Updater.Application.Profiles
                 }))
                 .ForMember(dest => dest.IsIncoming, source => source.MapFrom((src, dest, destMember, context) =>
                 {
-                    var email = context.Items["Email"];
+                    var email = (string)context.Items["Email"];
                     var from = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.From).Value;
-                    return from.ToLower() != email;
+                    return !from.Equals(email, StringComparison.OrdinalIgnoreCase);
                 }))
                 .ForMember(dest => dest.IsMedia, source => source.MapFrom((x, dest) =>
                 {

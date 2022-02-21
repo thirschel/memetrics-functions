@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,9 +38,9 @@ namespace MeMetrics.Updater.Infrastructure.MeMetrics
 
         }
 
-        public async Task SaveMessage(Message message)
+        public async Task SaveMessage(IList<Message> messages)
         {
-            await PostRequest($"{_baseUrl}/api/v1/messages", message);
+            await PostRequest($"{_baseUrl}/api/v2/messages", messages);
 
         }
 

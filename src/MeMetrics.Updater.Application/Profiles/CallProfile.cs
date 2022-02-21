@@ -28,7 +28,7 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.IsIncoming, source => source.MapFrom((src, dest, destMember, context) =>
                 {
                     var emailMatch = _callSnippetRegex.Match(src.Snippet);
-                    return emailMatch.Groups[3].Value.ToLower() == "incoming";
+                    return emailMatch.Groups[3].Value.Equals("incoming", StringComparison.OrdinalIgnoreCase);
                 }));
         }
     }

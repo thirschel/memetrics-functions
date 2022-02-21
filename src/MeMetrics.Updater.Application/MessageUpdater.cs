@@ -53,7 +53,7 @@ namespace MeMetrics.Updater.Application
                 messages.AddRange(response.Messages);
 
                 var hasFoundAllTodaysCalls = false;
-
+                var messagesToSave = new List<Message>();
                 while (!hasFoundAllTodaysCalls && messages.Any())
                 {
                     for (var i = 0; i < messages.Count; i++)
@@ -62,6 +62,10 @@ namespace MeMetrics.Updater.Application
                         hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
                         if (hasFoundAllTodaysCalls)
                         {
+                            if (messagesToSave.Any())
+                            {
+                                await _memetricsApi.SaveMessage(messagesToSave);
+                            }
                             _logger.Information($"Finished message updater. {transactionCount} messages successfully saved");
                             return new UpdaterResponse()  { Successful = true };
                         }
@@ -73,15 +77,18 @@ namespace MeMetrics.Updater.Application
 
                         var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
                         message.Attachments = await GetAttachments(messages[i].Id, email);
-               
-                        await _memetricsApi.SaveMessage(message);
+                        messagesToSave.Add(message);
                         transactionCount++;
                     }
 
+
+                    await _memetricsApi.SaveMessage(messagesToSave);
+                    messagesToSave.Clear();
                     messages.Clear();
 
                     if (!string.IsNullOrEmpty(response.NextPageToken))
                     {
+                        Console.WriteLine("Getting next page of messages");
                         response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
                         messages.AddRange(response.Messages);
                     }

@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
 
 namespace MeMetrics.Updater.Application.Interfaces
@@ -6,7 +7,7 @@ namespace MeMetrics.Updater.Application.Interfaces
     public interface IMeMetricsApi
     {
         Task SaveCall(Call call);
-        Task SaveMessage(Message message);
+        Task SaveMessage(IList<Message> message);
         Task SaveChatMessage(ChatMessage chatMessage);
         Task SaveRide(Ride ride);
         Task SaveTransaction(Transaction transaction);
