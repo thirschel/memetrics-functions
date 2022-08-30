@@ -167,14 +167,14 @@ stages:
               name: AddFirewallRule
               displayName: Add Firewall Rule to Azure Key Vault
               inputs:
-                azureSubscription: 'Visual Studio Enterprise'
+                azureSubscription: 'AzureDevops2022'
                 scriptLocation: 'inlineScript'
                 inlineScript: 'az keyvault network-rule add --resource-group $(resource_group_name) --name $(key_vault_name) --ip-address $(ip_address)'
 
             - task: AzureKeyVault@1
               displayName: 'download keyvault secrets'
               inputs:
-                azureSubscription: 'Visual Studio Enterprise'
+                azureSubscription: 'AzureDevops2022'
                 keyVaultName: '$(key_vault_name)'
 
             - bash: 'terraform init -backend-config="storage_account_name=$(TerraformStorageAccountName)" -backend-config="container_name=$(TerraformContainerName)" -backend-config="access_key=$(TerraformStorageAccountKey)" -backend-config="key=$(terraform_backend_filename)"'
@@ -250,7 +250,7 @@ stages:
               name: RemoveFirewallRule
               displayName: Remove Firewall Rule from Azure Key Vault
               inputs:
-                azureSubscription: 'Visual Studio Enterprise'
+                azureSubscription: 'AzureDevops2022'
                 scriptLocation: 'inlineScript'
                 inlineScript: 'az keyvault network-rule remove --resource-group $(resource_group_name) --name $(key_vault_name) --ip-address $(ip_address)/32'
 
