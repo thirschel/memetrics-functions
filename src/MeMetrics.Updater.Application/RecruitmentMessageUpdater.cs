@@ -134,7 +134,10 @@ namespace MeMetrics.Updater.Application
                             messagesToSave.Add(result);
                         }
                     }
-                    await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+                    if(messagesToSave.Any())
+                    {
+                        await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+                    }
                     transactionCount+= messagesToSave.Count;
 
                     // Some messages were skipped because they happened before the query date
@@ -192,7 +195,10 @@ namespace MeMetrics.Updater.Application
                     messagesToSave.Add(result);
                 }
             }
-            await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+            if(messagesToSave.Any()) 
+            {
+                await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+            }
             return messagesToSave.Count;
         }
 
