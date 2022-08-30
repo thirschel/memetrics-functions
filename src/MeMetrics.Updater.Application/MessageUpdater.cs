@@ -23,6 +23,7 @@ namespace MeMetrics.Updater.Application
         private readonly IOptions<EnvironmentConfiguration> _configuration;
         private readonly IMapper _mapper;
         private readonly int _daysToQuery = 2;
+        private bool _hasFoundAllTodaysCalls = false;
 
         public MessageUpdater(
             ILogger logger, 
@@ -53,40 +54,33 @@ namespace MeMetrics.Updater.Application
                 messages.AddRange(response.Messages);
 
                 var hasFoundAllTodaysCalls = false;
-                var messagesToSave = new List<Message>();
                 while (!hasFoundAllTodaysCalls && messages.Any())
                 {
+                    var tasks = new List<Task<Message>>();
                     for (var i = 0; i < messages.Count; i++)
                     {
-                        var email = await _gmailApi.GetEmail(messages[i].Id);
-                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                        if (hasFoundAllTodaysCalls)
-                        {
-                            if (messagesToSave.Any())
-                            {
-                                await _memetricsApi.SaveMessage(messagesToSave);
-                            }
-                            _logger.Information($"Finished message updater. {transactionCount} messages successfully saved");
-                            return new UpdaterResponse()  { Successful = true };
-                        }
-                        var phoneNumber = Utility.FormatStringToPhoneNumber(email.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value);
-                        if (phoneNumber.Length < 11 || Constants.PhoneNumberBlacklist.Contains(phoneNumber))
-                        {
-                            continue;
-                        }
-
-                        var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
-                        message.Attachments = await GetAttachments(messages[i].Id, email);
-                        messagesToSave.Add(message);
-                        transactionCount++;
+                        tasks.Add(ProcessMessage(messages[i].Id));
                     }
 
+                    await Task.WhenAll(tasks);
 
-                    await _memetricsApi.SaveMessage(messagesToSave);
-                    messagesToSave.Clear();
+                    List<Message> messagesToSave = new List<Message>();
+                    foreach (var task in tasks)
+                    {
+                        var result = (task).Result;
+                        if(result != null)
+                        {
+                            messagesToSave.Add(result);
+                        }
+                    }
+                    transactionCount += messagesToSave.Count;
+                    if (messagesToSave.Any())
+                    {
+                        await _memetricsApi.SaveMessages(messagesToSave);
+                    }
                     messages.Clear();
 
-                    if (!string.IsNullOrEmpty(response.NextPageToken))
+                    if (!string.IsNullOrEmpty(response.NextPageToken) && !_hasFoundAllTodaysCalls)
                     {
                         Console.WriteLine("Getting next page of messages");
                         response = await _gmailApi.GetEmails(smsLabel, response.NextPageToken);
@@ -102,6 +96,26 @@ namespace MeMetrics.Updater.Application
                 _logger.Error(e, "Failed to get and save messages");
                 return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
             }
+        }
+
+        internal async Task<Message> ProcessMessage(string messageId)
+        {
+            var email = await _gmailApi.GetEmail(messageId);
+            var shouldSkipMessage = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+            if (shouldSkipMessage)
+            {
+                _hasFoundAllTodaysCalls = true;
+                return null;
+            }
+            var phoneNumber = Utility.FormatStringToPhoneNumber(email.Payload.Headers.First(x => x.Name == Constants.EmailHeader.PhoneNumber).Value);
+            if (phoneNumber.Length < 11 || Constants.PhoneNumberBlacklist.Contains(phoneNumber))
+            {
+                return null;
+            }
+
+            var message = _mapper.Map<Message>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Sms_Email_Address);
+            message.Attachments = await GetAttachments(messageId, email);
+            return message;
         }
 
         internal async Task<List<Attachment>> GetAttachments(string messageId, Google.Apis.Gmail.v1.Data.Message email)

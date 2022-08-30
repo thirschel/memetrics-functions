@@ -103,8 +103,8 @@ namespace MeMetrics.Updater.Application.Tests
                 IsIncoming = true,
             };
 
-            Func<RecruitmentMessage, bool> validate = call => {
-                Assert.Equal(JsonConvert.SerializeObject(expectedMessage), JsonConvert.SerializeObject(call));
+            Func<List<RecruitmentMessage>, bool> validate = messages => {
+                Assert.Equal(JsonConvert.SerializeObject(expectedMessage), JsonConvert.SerializeObject(messages.First()));
                 return true;
             };
 
@@ -112,7 +112,7 @@ namespace MeMetrics.Updater.Application.Tests
             await updater.GetAndSaveEmailMessages();
 
             _gmailApiMock.Verify(x => x.Authenticate(config.Value.Gmail_Main_Refresh_Token), Times.Once);
-            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessage(It.Is<RecruitmentMessage>(z => validate(z))), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessages(It.Is<List<RecruitmentMessage>>(messages => validate(messages))), Times.Once);
         }
 
         [Fact]
@@ -173,7 +173,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new RecruitmentMessageUpdater(_loggerMock.Object, config, _linkedinApiMock.Object, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveEmailMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessage(It.IsAny<RecruitmentMessage>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessages(It.IsAny<List<RecruitmentMessage>>()), Times.Never);
         }
 
         [Fact]
@@ -248,7 +248,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new RecruitmentMessageUpdater(_loggerMock.Object, config, _linkedinApiMock.Object, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveEmailMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessage(It.IsAny<RecruitmentMessage>()), Times.Exactly(2));
+            _memetricsApiMock.Verify(x => x.SaveRecruitmentMessages(It.IsAny<List<RecruitmentMessage>>()), Times.Exactly(2));
         }
 
         [Fact]

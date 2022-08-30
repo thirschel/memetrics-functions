@@ -11,6 +11,7 @@ using MeMetrics.Updater.Application.Objects.Enums;
 using MeMetrics.Updater.Application.Objects.MeMetrics;
 using Microsoft.Extensions.Options;
 using Serilog;
+using MeMetrics.Updater.Application.Objects.LinkedIn;
 
 namespace MeMetrics.Updater.Application
 {
@@ -24,6 +25,7 @@ namespace MeMetrics.Updater.Application
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IMapper _mapper;
         private readonly int _daysToQuery = 2;
+        private bool _hasFoundAllTodaysCallsLinkedIn = false;
 
         public RecruitmentMessageUpdater(
             ILogger logger,
@@ -75,44 +77,23 @@ namespace MeMetrics.Updater.Application
 
         internal async Task<int> GetAndSaveRecruitmentMessages(long createdBeforeTime, int transactionCount)
         {
-            var hasFoundAllTodaysCalls = false;
             var messages = await _linkedInApi.GetConversations(createdBeforeTime);
+            var tasks = new List<Task<int>>();
             for (var i = 0; i < messages.Elements.Length; i++)
             {
-                if (hasFoundAllTodaysCalls)
-                {
-                    return transactionCount;
-                }
-                var conversationRegex = new Regex("urn:li:fs_conversation:(.*)");
-                var conversationId = conversationRegex.Match(messages.Elements[i].EntityUrn).Groups[1].ToString();
-                var events = await _linkedInApi.GetConversationEvents(conversationId);
+                tasks.Add(ProcessLinkedInConversation(messages.Elements[i]));
+            }
 
-                if (messages.Elements[i]?.Participants[0]?.MessagingMember?.MiniProfile?.ObjectUrn == null)
-                {
-                    continue;
-                }
-                var recruiter = messages.Elements[i].Participants.FirstOrDefault(p => p.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn);
+            await Task.WhenAll(tasks);
 
-                foreach (var element in events.Elements)
-                {
-                    var subTypes = Enum.GetValues(typeof(LinkedInMessageSubType)).Cast<LinkedInMessageSubType>().Select(x => x.GetDescription());
-                    hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(element.CreatedAt) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                    if (!subTypes.Contains(element.Subtype) || hasFoundAllTodaysCalls)
-                    {
-                        continue;
-                    }
-
-                    var recruitmentMessage = _mapper.Map<RecruitmentMessage>(element);
-                    recruitmentMessage.IsIncoming = element.From.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn;
-                    recruitmentMessage = _mapper.Map(recruiter.MessagingMember.MiniProfile, recruitmentMessage);
-                    
-                    await _memetricsApi.SaveRecruitmentMessage(recruitmentMessage);
-                    transactionCount++;
-                }
+            foreach (var task in tasks)
+            {
+                var result = (task).Result;
+                transactionCount += result;
             }
 
             var lastMessage = messages.Elements[messages.Elements.Length - 1].Events[0];
-            if (messages.Elements.Any())
+            if (messages.Elements.Any() && !_hasFoundAllTodaysCallsLinkedIn)
             {
                 return await GetAndSaveRecruitmentMessages(lastMessage.CreatedAt, transactionCount);
             }
@@ -136,20 +117,31 @@ namespace MeMetrics.Updater.Application
                 var hasFoundAllTodaysCalls = false;
                 while (!hasFoundAllTodaysCalls && messages.Any())
                 {
+                    var tasks = new List<Task<RecruitmentMessage>>();
                     for (var i = 0; i < messages.Count; i++)
                     {
-                        var email = await _gmailApi.GetEmail(messages[i].Id);
-                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
-                        if (hasFoundAllTodaysCalls)
+                        tasks.Add(ProcessMessage(messages[i].Id));
+                    }
+
+                    await Task.WhenAll(tasks);
+
+                    List<RecruitmentMessage> messagesToSave = new List<RecruitmentMessage>();
+                    foreach (var task in tasks)
+                    {
+                        var result = (task).Result;
+                        if (result != null)
                         {
-                            _logger.Information($"Finished recruiter message updater. {transactionCount} messages successfully saved");
-                            return new UpdaterResponse() { Successful = true };
+                            messagesToSave.Add(result);
                         }
+                    }
+                    await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+                    transactionCount+= messagesToSave.Count;
 
-                        var message = _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
-
-                        await _memetricsApi.SaveRecruitmentMessage(message);
-                        transactionCount++;
+                    // Some messages were skipped because they happened before the query date
+                    if(messages.Count != messagesToSave.Count)
+                    {
+                        _logger.Information($"Finished recruiter message updater. {transactionCount} messages successfully saved");
+                        return new UpdaterResponse() { Successful = true };
                     }
 
                     messages.Clear();
@@ -169,6 +161,70 @@ namespace MeMetrics.Updater.Application
                 _logger.Error(e, "Failed to get and save email recruitment messages");
                 return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
             }
+        }
+
+        internal async Task<int> ProcessLinkedInConversation(Element message)
+        {
+            var conversationRegex = new Regex("urn:li:fs_conversation:(.*)");
+            var conversationId = conversationRegex.Match(message.EntityUrn).Groups[1].ToString();
+            var events = await _linkedInApi.GetConversationEvents(conversationId);
+
+            if (message?.Participants[0]?.MessagingMember?.MiniProfile?.ObjectUrn == null)
+            {
+                return 0;
+            }
+            var recruiter = message.Participants.FirstOrDefault(p => p.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn);
+
+            var tasks = new List<Task<RecruitmentMessage>>();
+            foreach (var element in events.Elements)
+            {
+                tasks.Add(ProcessLinkedInMessage(recruiter.MessagingMember.MiniProfile, element));
+            }
+
+            await Task.WhenAll(tasks);
+
+            List<RecruitmentMessage> messagesToSave = new List<RecruitmentMessage>();
+            foreach (var task in tasks)
+            {
+                var result = (task).Result;
+                if (result != null)
+                {
+                    messagesToSave.Add(result);
+                }
+            }
+            await _memetricsApi.SaveRecruitmentMessages(messagesToSave);
+            return messagesToSave.Count;
+        }
+
+        internal async Task<RecruitmentMessage> ProcessLinkedInMessage(MiniProfile recruiterProfile, ConversationEvents.Element message)
+        {
+            var subTypes = Enum.GetValues(typeof(LinkedInMessageSubType)).Cast<LinkedInMessageSubType>().Select(x => x.GetDescription());
+            var hasFoundAllTodaysMessages = DateTimeOffset.FromUnixTimeMilliseconds(message.CreatedAt) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+            if (!subTypes.Contains(message.Subtype))
+            {
+                return null;
+            }
+            if (hasFoundAllTodaysMessages)
+            {
+                _hasFoundAllTodaysCallsLinkedIn = true;
+                return null;
+            }
+
+            var recruitmentMessage = _mapper.Map<RecruitmentMessage>(message);
+            recruitmentMessage.IsIncoming = message.From.MessagingMember.MiniProfile.ObjectUrn != _configuration.Value.LinkedIn_ObjectUrn;
+            return _mapper.Map(recruiterProfile, recruitmentMessage);
+        }
+
+        internal async Task<RecruitmentMessage> ProcessMessage(string messageId)
+        {
+            var email = await _gmailApi.GetEmail(messageId);
+            var hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds(email.InternalDate.Value) < DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+            if (hasFoundAllTodaysCalls)
+            {
+                return null;
+            }
+
+            return _mapper.Map<RecruitmentMessage>(email, opt => opt.Items["Email"] = _configuration.Value.Gmail_Recruiter_Email_Address);
         }
     }
 }

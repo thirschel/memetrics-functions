@@ -102,15 +102,15 @@ namespace MeMetrics.Updater.Application.Tests
                 Attachments = new List<Attachment>()
             };
 
-            Func<Objects.MeMetrics.Message, bool> validate = call => {
-                Assert.Equal(JsonConvert.SerializeObject(expectedMessage), JsonConvert.SerializeObject(call));
+            Func<List<Objects.MeMetrics.Message>, bool> validate = messages => {
+                Assert.Equal(JsonConvert.SerializeObject(expectedMessage), JsonConvert.SerializeObject(messages.First()));
                 return true;
             };
 
             var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveMessage(It.Is<Objects.MeMetrics.Message>(z => validate(z))), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveMessages(It.Is<List<Objects.MeMetrics.Message>>(z => validate(z))), Times.Once);
         }
 
         [Fact]
@@ -151,7 +151,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessages(It.IsAny<List<Objects.MeMetrics.Message>>()), Times.Never);
         }
 
         [Fact]
@@ -215,7 +215,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessages(It.IsAny<List<Objects.MeMetrics.Message>>()), Times.Never);
         }
 
         [Fact]
@@ -279,7 +279,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new MessageUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveMessages();
 
-            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveMessages(It.IsAny<List<Objects.MeMetrics.Message>>()), Times.Never);
         }
 
         [Fact]
@@ -352,7 +352,7 @@ namespace MeMetrics.Updater.Application.Tests
             await updater.GetAndSaveMessages();
 
             _gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Sms_Label, nextPageToken));
-            _memetricsApiMock.Verify(x => x.SaveMessage(It.IsAny<Objects.MeMetrics.Message>()), Times.Exactly(2));
+            _memetricsApiMock.Verify(x => x.SaveMessages(It.IsAny<List<Objects.MeMetrics.Message>>()), Times.Exactly(2));
         }
 
         [Fact]

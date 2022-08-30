@@ -228,6 +228,7 @@ stages:
                 TF_VAR_groupme_access_token:  $(GroupMeAccessToken)
                 TF_VAR_linkedin_username: $(LinkedInUsername)
                 TF_VAR_linkedin_password: $(LinkedInPassword)
+                TF_VAR_linkedin_objecturn: $(LinkedInObjectUrn)
                 TF_VAR_personal_capital_username: $(PersonalCapitalUsername)
                 TF_VAR_personal_capital_password: $(PersonalCapitalPassword)
                 TF_VAR_personal_capital_pmdata: $(PersonalCapitalPMData)

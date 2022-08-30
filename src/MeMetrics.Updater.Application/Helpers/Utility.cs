@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
@@ -66,6 +67,14 @@ namespace MeMetrics.Updater.Application.Helpers
                 DestinationLat = destination[0].Substring(0, Math.Min(destination[0].Length, 10)),
                 DestinationLong = destination[1].Substring(0, Math.Min(destination[1].Length, 10)),
             };
+        }
+
+        public static IEnumerable<List<T>> SplitList<T>(List<T> items, int nSize = 100)
+        {
+            for (int i = 0; i < items.Count; i += nSize)
+            {
+                yield return items.GetRange(i, Math.Min(nSize, items.Count - i));
+            }
         }
     }
 }

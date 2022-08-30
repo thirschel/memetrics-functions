@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace MeMetrics.Updater.Application.Objects.PersonalCapital
@@ -24,7 +25,7 @@ namespace MeMetrics.Updater.Application.Objects.PersonalCapital
         public double MoneyIn { get; set; }
 
         [JsonProperty("transactions")]
-        public Transaction[] Transactions { get; set; }
+        public List<Transaction> Transactions { get; set; }
 
         [JsonProperty("netCashflow")]
         public double NetCashflow { get; set; }

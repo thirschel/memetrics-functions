@@ -37,6 +37,7 @@ locals {
 
     LinkedIn_Username                             = var.linkedin_username
     LinkedIn_Password                             = var.linkedin_password
+    LinkedIn_ObjectUrn                            = var.linkedin_objecturn
 
     Personal_Capital_Username                     = var.personal_capital_username
     Personal_Capital_Password                     = var.personal_capital_password

@@ -21,6 +21,10 @@ namespace MeMetrics.Updater.Application
         private readonly IMeMetricsApi _memetricsApi;
         private readonly IMapper _mapper;
         private readonly int _daysToQuery = 2;
+        private bool _hasFoundAllTodaysCalls = false;
+        private Regex _snippetRegex = new Regex(@"(\d+)s \(\d+:\d+:\d+\) (\d+) \((incoming|outgoing) call\)",
+                    RegexOptions.IgnoreCase);
+
 
         public CallUpdater(
             ILogger logger,
@@ -51,39 +55,35 @@ namespace MeMetrics.Updater.Application
                 messages.AddRange(response.Messages);
 
                 var hasFoundAllTodaysCalls = false;
-                var snippetRegex = new Regex(@"(\d+)s \(\d+:\d+:\d+\) (\d+) \((incoming|outgoing) call\)",
-                    RegexOptions.IgnoreCase);
-
+   
                 while (!hasFoundAllTodaysCalls && messages.Any())
                 {
+                    var tasks = new List<Task<Call>>();
                     for (var i = 0; i < messages.Count; i++)
                     {
-                        if (hasFoundAllTodaysCalls)
-                        {
-                            _logger.Information($"Finished call updater. {transactionCount} call(s) successfully saved");
-                            return new UpdaterResponse() { Successful = true };
-                        } 
-                        var email = await _gmailApi.GetEmail(messages[i].Id);
-                        hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long) email.InternalDate) <
-                                                 DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+                        tasks.Add(ProcessCall(messages[i].Id));
+                    }
 
-                        var emailMatch = snippetRegex.Match(email.Snippet);
+                    await Task.WhenAll(tasks);
 
-                        // Cases that don't match are missed or rejected calls or emails that are not formatted correctly
-                        if (!emailMatch.Success || hasFoundAllTodaysCalls)
+                    var callsToSave = new List<Call>();
+                    foreach (var task in tasks)
+                    {
+                        var result = (task).Result;
+                        if (result != null)
                         {
-                            continue;
+                            callsToSave.Add(result);
                         }
-
-                        var call = _mapper.Map<Call>(email);
-
-                        await _memetricsApi.SaveCall(call);
-                        transactionCount++;
+                    }
+                    transactionCount += callsToSave.Count;
+                    if(callsToSave.Any())
+                    {
+                        await _memetricsApi.SaveCalls(callsToSave);
                     }
 
                     messages.Clear();
 
-                    if (!string.IsNullOrEmpty(response.NextPageToken))
+                    if (!string.IsNullOrEmpty(response.NextPageToken) && !_hasFoundAllTodaysCalls)
                     {
                         response = await _gmailApi.GetEmails(callLabelId, response.NextPageToken);
                         messages.AddRange(response.Messages);
@@ -99,5 +99,29 @@ namespace MeMetrics.Updater.Application
                 return new UpdaterResponse() { Successful = false, ErrorMessage = e.Message };
             }
         }
+
+        internal async Task<Call> ProcessCall(string messageId)
+        {
+            var email = await _gmailApi.GetEmail(messageId);
+            var hasFoundAllTodaysCalls = DateTimeOffset.FromUnixTimeMilliseconds((long)email.InternalDate) <
+                                     DateTimeOffset.UtcNow.AddDays(-_daysToQuery);
+
+            var emailMatch = _snippetRegex.Match(email.Snippet);
+
+            // Cases that don't match are missed or rejected calls or emails that are not formatted correctly
+            if (!emailMatch.Success)
+            {
+                return null;
+            }
+            if(hasFoundAllTodaysCalls)
+            {
+                _hasFoundAllTodaysCalls = true;
+                return null;
+            }
+
+            var call = _mapper.Map<Call>(email);
+            return call;
+        }
+
     }
 }

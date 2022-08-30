@@ -69,7 +69,12 @@ namespace MeMetrics.Updater.Application.Profiles
                 {
                     var email = context.Items["Email"];
                     var to = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.To).Value;
-                    var from = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.From).Value;
+                    var fromHeaderToCheck = Constants.EmailHeader.From;
+                    if (!src.Payload.Headers.Any(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        fromHeaderToCheck = Constants.EmailHeader.ReplyTo;
+                    }
+                    var from = src.Payload.Headers.First(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)).Value;
                     var withHeader = !from.Contains(email.ToString()) ? from : to;
                     withHeader = Regex.Replace(withHeader, "[\",]", "");
                     var match = _senderRegex.Match(withHeader);
@@ -79,7 +84,12 @@ namespace MeMetrics.Updater.Application.Profiles
                 {
                     var email = context.Items["Email"];
                     var to = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.To).Value;
-                    var from = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.From).Value;
+                    var fromHeaderToCheck = Constants.EmailHeader.From;
+                    if (!src.Payload.Headers.Any(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        fromHeaderToCheck = Constants.EmailHeader.ReplyTo;
+                    }
+                    var from = src.Payload.Headers.First(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)).Value;
                     var withHeader = !from.Contains(email.ToString()) ? from : to;
                     withHeader = Regex.Replace(withHeader, "[\",]", "");
                     var match = _senderRegex.Match(withHeader);
@@ -88,7 +98,12 @@ namespace MeMetrics.Updater.Application.Profiles
                 .ForMember(dest => dest.IsIncoming, source => source.MapFrom((src, dest, destMember, context) =>
                 {
                     var email = (string)context.Items["Email"];
-                    var from = src.Payload.Headers.First(x => x.Name == Constants.EmailHeader.From).Value;
+                    var fromHeaderToCheck = Constants.EmailHeader.From;
+                    if (!src.Payload.Headers.Any(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        fromHeaderToCheck = Constants.EmailHeader.ReplyTo;
+                    }
+                    var from = src.Payload.Headers.First(x => string.Equals(x.Name, fromHeaderToCheck, StringComparison.OrdinalIgnoreCase)).Value;
                     return !from.Equals(email, StringComparison.OrdinalIgnoreCase);
                 }));
         }

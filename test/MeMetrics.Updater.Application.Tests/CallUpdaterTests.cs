@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using Google.Apis.Gmail.v1.Data;
@@ -68,7 +69,7 @@ namespace MeMetrics.Updater.Application.Tests
             await updater.GetAndSaveCalls();
 
             _gmailApiMock.Verify(x => x.Authenticate(config.Value.Gmail_History_Refresh_Token), Times.Once);
-            _memetricsApiMock.Verify(x => x.SaveCall(It.IsAny<Call>()), Times.Never);
+            _memetricsApiMock.Verify(x => x.SaveCalls(It.IsAny<List<Call>>()), Times.Never);
         }
 
         [Fact]
@@ -120,15 +121,15 @@ namespace MeMetrics.Updater.Application.Tests
                 IsIncoming = true
             };
 
-            Func<Call, bool> validate = call => {
-                Assert.Equal(JsonConvert.SerializeObject(expectedCall), JsonConvert.SerializeObject(call));
+            Func<List<Call>, bool> validate = calls => {
+                Assert.Equal(JsonConvert.SerializeObject(expectedCall), JsonConvert.SerializeObject(calls.First()));
                 return true;
             };
 
             var updater = new CallUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
-            _memetricsApiMock.Verify(x => x.SaveCall(It.Is<Call>(z => validate(z))), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveCalls(It.Is<List<Call>>(calls => validate(calls))), Times.Once);
         }
 
         [Fact]
@@ -183,7 +184,7 @@ namespace MeMetrics.Updater.Application.Tests
             var updater = new CallUpdater(_loggerMock.Object, config, _gmailApiMock.Object, _memetricsApiMock.Object, _mapper);
             await updater.GetAndSaveCalls();
 
-            _memetricsApiMock.Verify(x => x.SaveCall(It.IsAny<Call>()), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveCalls(It.IsAny<List<Call>>()), Times.Once);
         }
 
         [Fact]
@@ -242,7 +243,7 @@ namespace MeMetrics.Updater.Application.Tests
             await updater.GetAndSaveCalls();
 
             _gmailApiMock.Verify(x => x.GetEmails(config.Value.Gmail_Call_Log_Label, nextPageToken));
-            _memetricsApiMock.Verify(x => x.SaveCall(It.IsAny<Call>()), Times.Exactly(2));
+            _memetricsApiMock.Verify(x => x.SaveCalls(It.IsAny<List<Call>>()), Times.Exactly(2));
         }
 
         [Fact]

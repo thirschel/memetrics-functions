@@ -7,6 +7,7 @@ namespace MeMetrics.Updater.Application.Objects
         public static class EmailHeader
         {
             public static string From = "From";
+            public static string ReplyTo = "Reply-To";
             public static string To = "To";
             public static string PhoneNumber = "X-smssync-address";
             public static string ThreadId = "X-smssync-thread";

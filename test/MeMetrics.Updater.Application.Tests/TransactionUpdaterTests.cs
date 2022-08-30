@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using AutoMapper;
 using MeMetrics.Updater.Application.Interfaces;
@@ -64,7 +66,7 @@ namespace MeMetrics.Updater.Application.Tests
             {
                 SpData = new TransactionData()
                 {
-                    Transactions = new Transaction[]
+                    Transactions = new List<Transaction>()
                     {
                         new Transaction()
                         {
@@ -97,15 +99,15 @@ namespace MeMetrics.Updater.Application.Tests
                 OccurredDate = transactionDate,
             };
 
-            Func<Objects.MeMetrics.Transaction, bool> validate = transaction => {
-                Assert.Equal(JsonConvert.SerializeObject(expectedTransaction), JsonConvert.SerializeObject(transaction));
+            Func<List<Objects.MeMetrics.Transaction>, bool> validate = transactions => {
+                Assert.Equal(JsonConvert.SerializeObject(expectedTransaction), JsonConvert.SerializeObject(transactions.First()));
                 return true;
             };
 
             await updater.GetAndSaveTransactions();
 
             _personalCapitalApiMock.Verify(x => x.Authenticate(config.Value.Personal_Capital_Username, config.Value.Personal_Capital_Password, config.Value.Personal_Capital_PMData), Times.Once);
-            _memetricsApiMock.Verify(x => x.SaveTransaction(It.Is<Objects.MeMetrics.Transaction>(x => validate(x))), Times.Once);
+            _memetricsApiMock.Verify(x => x.SaveTransactions(It.Is<List<Objects.MeMetrics.Transaction>>(transactions => validate(transactions))), Times.Once);
         }
 
         [Fact]

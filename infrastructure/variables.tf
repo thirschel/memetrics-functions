@@ -57,6 +57,7 @@ variable "groupme_access_token" {}
 
 variable "linkedin_username" {}
 variable "linkedin_password" {}
+variable "linkedin_objecturn" {}
 
 variable "personal_capital_username" {}
 variable "personal_capital_password" {}

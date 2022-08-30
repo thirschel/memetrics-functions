@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -51,12 +52,16 @@ namespace MeMetrics.Updater.Application
                 var transactions = await _personalCapitalApi.GetUserTransactions(startTime, endTime);
                 if (transactions.SpData?.Transactions != null)
                 {
-                    foreach (var transactionData in transactions.SpData?.Transactions)
+                    var transactionsToSave = new List<Transaction>();
+                    foreach (var transactionDataChunk in Utility.SplitList(transactions.SpData?.Transactions, 100))
                     {
-                        var transaction = _mapper.Map<Transaction>(transactionData);
-
-                        await _memetricsApi.SaveTransaction(transaction);
-                        transactionCount++;
+                        foreach(var transactionData in transactionDataChunk)
+                        {
+                            var transaction = _mapper.Map<Transaction>(transactionData);
+                            transactionsToSave.Add(transaction);
+                        }
+                        await _memetricsApi.SaveTransactions(transactionsToSave);
+                        transactionCount+= transactionsToSave.Count;
                     }
                 }
 

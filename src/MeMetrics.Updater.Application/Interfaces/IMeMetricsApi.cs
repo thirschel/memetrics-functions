@@ -6,12 +6,12 @@ namespace MeMetrics.Updater.Application.Interfaces
 {
     public interface IMeMetricsApi
     {
-        Task SaveCall(Call call);
-        Task SaveMessage(IList<Message> message);
+        Task SaveCalls(IList<Call> calls);
+        Task SaveMessages(IList<Message> messages);
         Task SaveChatMessage(ChatMessage chatMessage);
         Task SaveRide(Ride ride);
-        Task SaveTransaction(Transaction transaction);
-        Task SaveRecruitmentMessage(RecruitmentMessage recruitmentMessage);
+        Task SaveTransactions(List<Transaction> transactions);
+        Task SaveRecruitmentMessages(List<RecruitmentMessage> recruitmentMessages);
         Task Cache();
     }
 }

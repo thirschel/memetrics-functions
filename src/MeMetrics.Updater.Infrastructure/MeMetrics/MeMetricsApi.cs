@@ -32,39 +32,34 @@ namespace MeMetrics.Updater.Infrastructure.MeMetrics
         }
 
 
-        public async Task SaveCall(Call call)
+        public async Task SaveCalls(IList<Call> calls)
         {
-            await PostRequest($"{_baseUrl}/api/v1/calls", call);
-
+            await PostRequest($"{_baseUrl}/api/v2/calls", calls);
         }
 
-        public async Task SaveMessage(IList<Message> messages)
+        public async Task SaveMessages(IList<Message> messages)
         {
             await PostRequest($"{_baseUrl}/api/v2/messages", messages);
-
         }
 
         public async Task SaveChatMessage(ChatMessage chatMessage)
         {
             await PostRequest($"{_baseUrl}/api/v1/chat-messages", chatMessage);
-
         }
 
         public async Task SaveRide(Ride ride)
         {
             await PostRequest($"{_baseUrl}/api/v1/rides", ride);
-
         }
 
-        public async Task SaveTransaction(Transaction transaction)
+        public async Task SaveTransactions(List<Transaction> transactions)
         {
-            await PostRequest($"{_baseUrl}/api/v1/transactions", transaction);
-
+            await PostRequest($"{_baseUrl}/api/v2/transactions", transactions);
         }
 
-        public async Task SaveRecruitmentMessage(RecruitmentMessage recruitmentMessage)
+        public async Task SaveRecruitmentMessages(List<RecruitmentMessage> recruitmentMessages)
         {
-            await PostRequest($"{_baseUrl}/api/v1/recruitment-messages", recruitmentMessage);
+            await PostRequest($"{_baseUrl}/api/v2/recruitment-messages", recruitmentMessages);
         }
 
         public async Task Cache()
